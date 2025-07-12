@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-快速数据加载器 - 从HDF5预处理数据中高效读取
+Fast data loader - Efficiently read from HDF5 preprocessed data
 
-该模块提供了高效的数据加载器，直接从预处理的HDF5文件中读取数据，
-大大减少训练时的数据加载时间，提高GPU利用率。
+This module provides efficient data loaders that directly read data from preprocessed HDF5 files,
+significantly reducing training data loading time and improving GPU utilization.
 
-主要特性：
-1. 直接从HDF5读取预处理数据
-2. 支持内存缓存和预加载
-3. 高效的多进程数据读取
-4. 支持数据增强（可选）
-5. 智能数据分割
+Main features:
+1. Direct reading from HDF5 preprocessed data
+2. Support memory caching and preloading
+3. Efficient multi-process data reading
+4. Support data augmentation (optional)
+5. Intelligent data splitting
 """
 
 import os
@@ -30,7 +30,7 @@ warnings.filterwarnings('ignore')
 
 
 class FastCardiacDataset(Dataset):
-    """快速心脏功能数据集 - 从HDF5文件读取预处理数据"""
+    """Fast cardiac function dataset - Read preprocessed data from HDF5 files"""
     
     def __init__(self, 
                  hdf5_path: str, 
@@ -40,15 +40,15 @@ class FastCardiacDataset(Dataset):
                  cache_size: int = 1000,
                  preload_data: bool = False):
         """
-        初始化快速数据集
+        Initialize fast dataset
         
         Args:
-            hdf5_path: HDF5文件路径
-            metadata_path: 元数据文件路径
-            item_ids: 数据项ID列表
-            enable_cache: 是否启用内存缓存
-            cache_size: 缓存大小
-            preload_data: 是否预加载所有数据到内存
+            hdf5_path: HDF5 file path
+            metadata_path: Metadata file path
+            item_ids: List of data item IDs
+            enable_cache: Whether to enable memory cache
+            cache_size: Cache size
+            preload_data: Whether to preload all data to memory
         """
         self.hdf5_path = Path(hdf5_path)
         self.metadata_path = Path(metadata_path)
@@ -57,45 +57,45 @@ class FastCardiacDataset(Dataset):
         self.cache_size = cache_size
         self.preload_data = preload_data
         
-        # 验证文件存在
+        # Validate file existence
         if not self.hdf5_path.exists():
-            raise FileNotFoundError(f"HDF5文件不存在: {hdf5_path}")
+            raise FileNotFoundError(f"HDF5 file not found: {hdf5_path}")
         if not self.metadata_path.exists():
-            raise FileNotFoundError(f"元数据文件不存在: {metadata_path}")
+            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
         
-        # 加载元数据索引
+        # Load metadata index
         self.metadata_index = self._load_metadata_index()
         
-        # 验证数据项ID
+        # Validate item IDs
         self._validate_item_ids()
         
-        # 初始化缓存
+        # Initialize cache
         self._cache = {} if enable_cache else None
         self._cache_lock = threading.Lock() if enable_cache else None
         
-        # 预加载数据
+        # Preload data
         if preload_data:
             self._preload_all_data()
         
-        # 设置日志
+        # Setup logging
         self.logger = logging.getLogger(__name__)
     
     def _load_metadata_index(self) -> Dict[str, Any]:
-        """加载元数据索引"""
+        """Load metadata index"""
         with open(self.metadata_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     
     def _validate_item_ids(self):
-        """验证数据项ID"""
+        """Validate item IDs"""
         available_ids = set(self.metadata_index['items'].keys())
         missing_ids = set(self.item_ids) - available_ids
         
         if missing_ids:
-            raise ValueError(f"以下数据项ID不存在: {missing_ids}")
+            raise ValueError(f"Following item IDs not found: {missing_ids}")
     
     def _preload_all_data(self):
-        """预加载所有数据到内存"""
-        self.logger.info(f"预加载 {len(self.item_ids)} 个数据项...")
+        """Preload all data to memory"""
+        self.logger.info(f"Preloading {len(self.item_ids)} data items...")
         
         self._preloaded_data = {}
         
@@ -104,10 +104,10 @@ class FastCardiacDataset(Dataset):
             metadata_group = f['metadata']
             
             for item_id in self.item_ids:
-                # 加载图像数据
+                # Load image data
                 image_data = images_group[item_id][:]
                 
-                # 加载元数据
+                # Load metadata
                 metadata_str = metadata_group[item_id][()]
                 if isinstance(metadata_str, bytes):
                     metadata_str = metadata_str.decode('utf-8')
@@ -118,10 +118,10 @@ class FastCardiacDataset(Dataset):
                     'metadata': metadata
                 }
         
-        self.logger.info("数据预加载完成")
+        self.logger.info("Data preloading completed")
     
     def _get_from_cache(self, item_id: str) -> Optional[Dict[str, Any]]:
-        """从缓存获取数据"""
+        """Get data from cache"""
         if not self.enable_cache:
             return None
         
@@ -129,37 +129,37 @@ class FastCardiacDataset(Dataset):
             return self._cache.get(item_id)
     
     def _add_to_cache(self, item_id: str, data: Dict[str, Any]):
-        """添加数据到缓存"""
+        """Add data to cache"""
         if not self.enable_cache:
             return
         
         with self._cache_lock:
             if len(self._cache) >= self.cache_size:
-                # 删除最旧的缓存项
+                # Remove oldest cache item
                 oldest_key = next(iter(self._cache))
                 del self._cache[oldest_key]
             
             self._cache[item_id] = data
     
     def _load_item_from_hdf5(self, item_id: str) -> Dict[str, Any]:
-        """从HDF5文件加载数据项"""
+        """Load data item from HDF5 file"""
         if self.preload_data:
             return self._preloaded_data[item_id]
         
-        # 检查缓存
+        # Check cache
         cached_data = self._get_from_cache(item_id)
         if cached_data is not None:
             return cached_data
         
-        # 从HDF5文件加载
+        # Load from HDF5 file
         with h5py.File(self.hdf5_path, 'r') as f:
             images_group = f['images']
             metadata_group = f['metadata']
             
-            # 加载图像数据
+            # Load image data
             image_data = images_group[item_id][:]
             
-            # 加载元数据
+            # Load metadata
             metadata_str = metadata_group[item_id][()]
             if isinstance(metadata_str, bytes):
                 metadata_str = metadata_str.decode('utf-8')
@@ -170,7 +170,7 @@ class FastCardiacDataset(Dataset):
                 'metadata': metadata
             }
             
-            # 添加到缓存
+            # Add to cache
             self._add_to_cache(item_id, data)
             
             return data
@@ -182,15 +182,15 @@ class FastCardiacDataset(Dataset):
         item_id = self.item_ids[idx]
         data = self._load_item_from_hdf5(item_id)
         
-        # 转换为张量
+        # Convert to tensor
         image_tensor = torch.from_numpy(data['image']).float()
         
-        # 获取心脏功能指标
+        # Get cardiac function metrics
         cardiac_metrics = data['metadata']['cardiac_metrics']
         if cardiac_metrics is not None:
             cardiac_metrics = torch.tensor(cardiac_metrics, dtype=torch.float32)
         else:
-            # 生成模拟标签
+            # Generate dummy labels
             cardiac_metrics = torch.tensor(self._generate_dummy_labels(), dtype=torch.float32)
         
         return {
@@ -198,67 +198,66 @@ class FastCardiacDataset(Dataset):
             'cardiac_metrics': cardiac_metrics,
             'patient_id': data['metadata']['patient_id'],
             'basename': data['metadata']['basename'],
-            'folder': data['metadata']['folder'],
-            'original_path': data['metadata']['original_path'],
-            'metadata': data['metadata'].get('metadata', {})
+            'folder': data['metadata']['folder']
         }
     
     def _generate_dummy_labels(self) -> np.ndarray:
-        """生成模拟的心脏功能标签"""
-        # 生成LVEF和AS的模拟数据
-        lvef = np.float32(np.random.normal(0, 1))
+        """Generate dummy labels for demo"""
+        # Generate LVEF (30-70) and AS (0 or 1)
+        lvef = np.random.uniform(30, 70)
         as_label = np.float32(np.random.randint(0, 2))
+        
         return np.array([lvef, as_label], dtype=np.float32)
 
 
 class FastDataLoaderManager:
-    """快速数据加载器管理器"""
+    """Fast data loader manager"""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.logger = logging.getLogger(__name__)
         
-        # 文件路径
+        # File paths
         self.hdf5_path = Path(config['preprocessed_data_dir']) / 'preprocessed_data.h5'
         self.metadata_path = Path(config['preprocessed_data_dir']) / 'data_metadata.json'
         
-        # 验证文件存在
+        # Validate file existence
         if not self.hdf5_path.exists():
-            raise FileNotFoundError(f"预处理数据文件不存在: {self.hdf5_path}")
+            raise FileNotFoundError(f"Preprocessed data file not found: {self.hdf5_path}")
         if not self.metadata_path.exists():
-            raise FileNotFoundError(f"元数据文件不存在: {self.metadata_path}")
+            raise FileNotFoundError(f"Metadata file not found: {self.metadata_path}")
         
-        # 加载元数据
+        # Load metadata
         self.metadata_index = self._load_metadata_index()
         
-        self.logger.info(f"加载元数据索引: {len(self.metadata_index['items'])} 个数据项")
+        self.logger.info(f"Loaded metadata index: {len(self.metadata_index['items'])} data items")
     
     def _load_metadata_index(self) -> Dict[str, Any]:
-        """加载元数据索引"""
+        """Load metadata index"""
         with open(self.metadata_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     
     def get_all_item_ids(self) -> List[str]:
-        """获取所有数据项ID"""
+        """Get all data item IDs"""
         return list(self.metadata_index['items'].keys())
     
     def get_items_by_patient(self, patient_id: str) -> List[str]:
-        """根据患者ID获取数据项"""
+        """Get data items by patient ID"""
         return self.metadata_index['patient_mapping'].get(patient_id, [])
     
     def get_items_by_folder(self, folder: str) -> List[str]:
-        """根据文件夹获取数据项"""
+        """Get data items by folder"""
         return self.metadata_index['folder_mapping'].get(folder, [])
     
     def split_data(self, 
                    split_method: str = 'random',
                    train_ratio: float = 0.8,
                    random_state: int = 42) -> Tuple[List[str], List[str]]:
-        """分割数据为训练集和验证集"""
+        """Split data into training and validation sets"""
         all_item_ids = self.get_all_item_ids()
         
         if split_method == 'random':
-            # 随机分割
+            # Random split
             train_ids, val_ids = train_test_split(
                 all_item_ids,
                 train_size=train_ratio,
@@ -267,7 +266,7 @@ class FastDataLoaderManager:
             )
         
         elif split_method == 'patient_based':
-            # 基于患者的分割
+            # Patient-based split
             all_patients = list(self.metadata_index['patient_mapping'].keys())
             train_patients, val_patients = train_test_split(
                 all_patients,
@@ -286,15 +285,15 @@ class FastDataLoaderManager:
                 val_ids.extend(self.get_items_by_patient(patient))
         
         elif split_method == 'sequential':
-            # 顺序分割
+            # Sequential split
             split_idx = int(len(all_item_ids) * train_ratio)
             train_ids = all_item_ids[:split_idx]
             val_ids = all_item_ids[split_idx:]
         
         else:
-            raise ValueError(f"不支持的分割方法: {split_method}")
+            raise ValueError(f"Unsupported split method: {split_method}")
         
-        self.logger.info(f"数据分割完成: 训练集 {len(train_ids)}, 验证集 {len(val_ids)}")
+        self.logger.info(f"Data split completed: Training set {len(train_ids)}, Validation set {len(val_ids)}")
         return train_ids, val_ids
     
     def create_dataset(self, 
@@ -302,7 +301,7 @@ class FastDataLoaderManager:
                       enable_cache: bool = True,
                       cache_size: int = 1000,
                       preload_data: bool = False) -> FastCardiacDataset:
-        """创建数据集"""
+        """Create dataset"""
         return FastCardiacDataset(
             hdf5_path=self.hdf5_path,
             metadata_path=self.metadata_path,
@@ -313,15 +312,15 @@ class FastDataLoaderManager:
         )
     
     def create_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
-        """创建训练和验证数据加载器"""
-        # 分割数据
+        """Create training and validation data loaders"""
+        # Split data
         train_ids, val_ids = self.split_data(
             split_method=self.config.get('split_method', 'random'),
             train_ratio=self.config.get('train_val_split', 0.8),
             random_state=self.config.get('seed', 42)
         )
         
-        # 创建数据集
+        # Create dataset
         cache_config = self.config.get('cache_config', {})
         
         train_dataset = self.create_dataset(
@@ -338,7 +337,7 @@ class FastDataLoaderManager:
             preload_data=cache_config.get('preload_val_data', False)
         )
         
-        # 创建数据加载器
+        # Create data loaders
         train_loader = DataLoader(
             train_dataset,
             batch_size=self.config.get('batch_size', 4),
@@ -362,10 +361,10 @@ class FastDataLoaderManager:
         return train_loader, val_loader
     
     def get_data_statistics(self) -> Dict[str, Any]:
-        """获取数据统计信息"""
+        """Get data statistics"""
         stats = self.metadata_index['statistics'].copy()
         
-        # 添加文件大小信息
+        # Add file size information
         hdf5_size = self.hdf5_path.stat().st_size / (1024 * 1024)  # MB
         metadata_size = self.metadata_path.stat().st_size / 1024  # KB
         
@@ -379,34 +378,34 @@ class FastDataLoaderManager:
 
 
 def create_fast_data_loaders(config: Dict[str, Any]) -> Tuple[DataLoader, DataLoader]:
-    """创建快速数据加载器的便捷函数"""
+    """Create convenient function for fast data loaders"""
     manager = FastDataLoaderManager(config)
     return manager.create_data_loaders()
 
 
 def benchmark_data_loading(config: Dict[str, Any], num_batches: int = 10) -> Dict[str, float]:
-    """基准测试数据加载性能"""
+    """Benchmark data loading performance"""
     import time
     
     manager = FastDataLoaderManager(config)
     train_loader, val_loader = manager.create_data_loaders()
     
-    # 测试训练数据加载
+    # Test training data loading
     start_time = time.time()
     for i, batch in enumerate(train_loader):
         if i >= num_batches:
             break
-        # 模拟数据使用
+        # Simulated data usage
         _ = batch['image'].shape
     
     train_time = time.time() - start_time
     
-    # 测试验证数据加载
+    # Test validation data loading
     start_time = time.time()
     for i, batch in enumerate(val_loader):
         if i >= num_batches:
             break
-        # 模拟数据使用
+        # Simulated data usage
         _ = batch['image'].shape
     
     val_time = time.time() - start_time
@@ -420,7 +419,7 @@ def benchmark_data_loading(config: Dict[str, Any], num_batches: int = 10) -> Dic
 
 
 if __name__ == '__main__':
-    # 测试快速数据加载器
+    # Test fast data loader
     config = {
         'preprocessed_data_dir': 'outputs/preprocessed_data',
         'batch_size': 4,
@@ -437,25 +436,25 @@ if __name__ == '__main__':
     }
     
     try:
-        # 创建数据加载器
+        # Create data loaders
         train_loader, val_loader = create_fast_data_loaders(config)
         
-        print(f"训练集大小: {len(train_loader.dataset)}")
-        print(f"验证集大小: {len(val_loader.dataset)}")
+        print(f"Training set size: {len(train_loader.dataset)}")
+        print(f"Validation set size: {len(val_loader.dataset)}")
         
-        # 测试数据加载
+        # Test data loading
         batch = next(iter(train_loader))
-        print(f"批次形状: {batch['image'].shape}")
-        print(f"心脏功能指标形状: {batch['cardiac_metrics'].shape}")
+        print(f"Batch shape: {batch['image'].shape}")
+        print(f"Cardiac function metrics shape: {batch['cardiac_metrics'].shape}")
         
-        # 性能基准测试
-        print("\n开始性能基准测试...")
+        # Performance benchmark test
+        print("\nStarting performance benchmark test...")
         benchmark_results = benchmark_data_loading(config)
         
-        print("基准测试结果:")
+        print("Benchmark test results:")
         for key, value in benchmark_results.items():
             print(f"  {key}: {value:.4f}")
         
     except Exception as e:
-        print(f"测试失败: {e}")
-        print("请先运行数据预处理脚本生成HDF5文件") 
+        print(f"Test failed: {e}")
+        print("Please run data preprocessing script to generate HDF5 file first") 

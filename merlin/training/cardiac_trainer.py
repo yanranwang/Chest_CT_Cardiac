@@ -78,79 +78,79 @@ class CardiacDataset(Dataset):
 
 
 class CardiacTrainer:
-    """心脏功能回归训练器"""
+    """Cardiac function regression trainer"""
     
     def __init__(self, config):
         self.config = config
         self.device = torch.device(config.get('device', 'cuda' if torch.cuda.is_available() else 'cpu'))
         
-        # 创建输出目录
+        # Create output directory
         self.output_dir = Path(config['output_dir'])
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 设置日志（必须在使用logger之前）
+        # Setup logging (must be before using logger)
         self._setup_logging()
         
-        # 设置随机种子
+        # Set random seed
         self._set_random_seed(config.get('seed', 42))
         
-        # 初始化模型
+        # Initialize model
         self.model = self._build_model()
         
-        # 初始化优化器和调度器
+        # Initialize optimizer and scheduler
         self.optimizer = self._build_optimizer()
         self.scheduler = self._build_scheduler()
         
-        # 初始化损失函数
+        # Initialize loss function
         self.criterion = self._build_loss_function()
         
-        # 初始化训练记录
+        # Initialize training records
         self.best_val_loss = float('inf')
         self.train_losses = []
         self.val_losses = []
         self.epoch_times = []
         
-        # 初始化tensorboard记录器
+        # Initialize tensorboard writer
         if config.get('use_tensorboard', True):
             self.writer = SummaryWriter(self.output_dir / 'tensorboard')
         else:
             self.writer = None
     
     def _set_random_seed(self, seed):
-        """设置随机种子"""
+        """Set random seed"""
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         np.random.seed(seed)
     
     def _build_model(self):
-        """构建模型"""
+        """Build model"""
         model = CardiacFunctionModel(
             pretrained_model_path=self.config.get('pretrained_model_path')
         )
         
-        # 是否冻结图像编码器
+        # Whether to freeze image encoder
         if self.config.get('freeze_encoder', False):
             model.freeze_encoder(True)
-            self.logger.info("图像编码器已冻结")
+            self.logger.info("Image encoder frozen")
         
         model = model.to(self.device)
         
-        # 多GPU训练
+        # Multi-GPU training
         if torch.cuda.device_count() > 1:
-            # 检查batch_size是否足够大，避免每个GPU分到的batch_size为1
+            # Check if batch_size is large enough to avoid batch_size=1 per GPU
             batch_size = self.config.get('batch_size', 4)
             num_gpus = torch.cuda.device_count()
             if batch_size < num_gpus:
-                self.logger.warning(f"批量大小 {batch_size} 小于GPU数量 {num_gpus}，可能导致BatchNorm错误")
-                self.logger.warning("建议增加批量大小或减少GPU数量")
+                self.logger.warning(f"Batch size {batch_size} is smaller than GPU count {num_gpus}, may cause BatchNorm error")
+                self.logger.warning("Consider increasing batch_size or reducing GPU count")
             
             model = nn.DataParallel(model)
-            self.logger.info(f"使用 {torch.cuda.device_count()} 个GPU进行训练")
+            self.logger.info(f"Using {torch.cuda.device_count()} GPUs for training")
         
         return model
     
     def _build_optimizer(self):
-        """构建优化器"""
+        """Build optimizer"""
         optimizer_name = self.config.get('optimizer', 'adam').lower()
         lr = self.config.get('learning_rate', 1e-4)
         weight_decay = self.config.get('weight_decay', 1e-5)
@@ -162,12 +162,12 @@ class CardiacTrainer:
         elif optimizer_name == 'sgd':
             optimizer = optim.SGD(self.model.parameters(), lr=lr, weight_decay=weight_decay, momentum=0.9)
         else:
-            raise ValueError(f"不支持的优化器: {optimizer_name}")
+            raise ValueError(f"Unsupported optimizer: {optimizer_name}")
         
         return optimizer
     
     def _build_scheduler(self):
-        """构建学习率调度器"""
+        """Build learning rate scheduler"""
         scheduler_config = self.config.get('scheduler', {})
         scheduler_type = scheduler_config.get('type', 'cosine')
         
@@ -196,10 +196,10 @@ class CardiacTrainer:
         return scheduler
     
     def _build_loss_function(self):
-        """构建损失函数"""
+        """Build loss function"""
         from merlin.models.cardiac_regression import CardiacLoss
         
-        # 使用专门的心脏功能损失函数，处理LVEF回归和AS分类
+        # Use specialized cardiac function loss that handles LVEF regression and AS classification
         regression_weight = self.config.get('regression_weight', 1.0)
         classification_weight = self.config.get('classification_weight', 1.0)
         
@@ -211,7 +211,7 @@ class CardiacTrainer:
         return criterion
     
     def _setup_logging(self):
-        """设置日志"""
+        """Setup logging"""
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
@@ -223,7 +223,7 @@ class CardiacTrainer:
         self.logger = logging.getLogger(__name__)
     
     def _format_time(self, seconds):
-        """格式化时间显示"""
+        """Format time display"""
         if seconds < 60:
             return f"{seconds:.1f}s"
         elif seconds < 3600:
@@ -236,12 +236,12 @@ class CardiacTrainer:
             return f"{hours:.0f}h {minutes:.0f}m"
     
     def train_epoch(self, train_loader, epoch):
-        """训练一个epoch"""
+        """Train one epoch"""
         self.model.train()
         epoch_loss = 0.0
         num_batches = len(train_loader)
         
-        # 创建进度条
+        # Create progress bar
         pbar = tqdm(train_loader, desc=f'Epoch {epoch+1:3d}/{self.config.get("epochs", 100)}', 
                    ncols=120, leave=False)
         
@@ -249,68 +249,58 @@ class CardiacTrainer:
         for batch_idx, batch in enumerate(pbar):
             images = batch['image'].to(self.device)
             
-            # 从cardiac_metrics中提取LVEF和AS目标值
+            # Extract LVEF and AS target values from cardiac_metrics
             cardiac_metrics = batch['cardiac_metrics'].to(self.device)
-            # 假设cardiac_metrics的第一个值是LVEF，第二个值是AS
+            # Assume first value is LVEF, second is AS
             if cardiac_metrics.shape[1] >= 2:
-                lvef_targets = cardiac_metrics[:, 0]  # LVEF目标值
-                as_targets = cardiac_metrics[:, 1]    # AS目标值
+                lvef_targets = cardiac_metrics[:, 0]  # LVEF target
+                as_targets = cardiac_metrics[:, 1]    # AS target
             else:
-                # 如果只有一个值，假设是LVEF，AS设为0
+                # If only one value, assume it's LVEF, set AS to 0
                 lvef_targets = cardiac_metrics[:, 0]
                 as_targets = torch.zeros_like(lvef_targets)
             
-            # 前向传播
+            # Forward pass
             self.optimizer.zero_grad()
             lvef_preds, as_preds = self.model(images)
             
-            # 计算损失
+            # Calculate loss
             loss_dict = self.criterion(lvef_preds, as_preds, lvef_targets, as_targets)
             loss = loss_dict['total_loss']
             
-            # 反向传播
+            # Backward pass
             loss.backward()
             
-            # 梯度裁剪
-            if self.config.get('grad_clip', None):
+            # Gradient clipping
+            if self.config.get('grad_clip', 0) > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config['grad_clip'])
             
             self.optimizer.step()
             
-            epoch_loss += loss.item()
+            # Record loss
             batch_losses.append(loss.item())
+            epoch_loss += loss.item()
             
-            # 更新进度条
-            if len(batch_losses) >= 10:  # 显示最近10个batch的平均损失
-                recent_loss = np.mean(batch_losses[-10:])
-            else:
-                recent_loss = np.mean(batch_losses)
-            
+            # Update progress bar
             pbar.set_postfix({
-                'Loss': f'{recent_loss:.4f}',
-                'LR': f'{self.optimizer.param_groups[0]["lr"]:.2e}',
-                'GPU': f'{torch.cuda.get_device_name(0)[:12]}' if torch.cuda.is_available() else 'CPU'
+                'Loss': f'{loss.item():.4f}',
+                'LR': f'{self.optimizer.param_groups[0]["lr"]:.2e}'
             })
             
-            # 详细日志记录
-            if batch_idx % max(1, self.config.get('log_interval', 10)) == 0:
+            # Log training progress
+            if batch_idx % self.config.get('log_interval', 10) == 0:
                 self.logger.info(
-                    f'Epoch {epoch+1:3d} [{batch_idx:4d}/{num_batches:4d}] '
-                    f'Loss: {loss.item():.6f} | LR: {self.optimizer.param_groups[0]["lr"]:.2e} | '
-                    f'GPU Memory: {torch.cuda.memory_allocated()/1024**3:.1f}GB' 
-                    if torch.cuda.is_available() else ''
+                    f'Epoch {epoch+1:3d}/{self.config.get("epochs", 100)} '
+                    f'[{batch_idx:4d}/{num_batches:4d}] '
+                    f'Loss: {loss.item():.6f} '
+                    f'LR: {self.optimizer.param_groups[0]["lr"]:.2e}'
                 )
-                
-                if self.writer:
-                    step = epoch * num_batches + batch_idx
-                    self.writer.add_scalar('Train/BatchLoss', loss.item(), step)
-                    self.writer.add_scalar('Train/LearningRate', self.optimizer.param_groups[0]['lr'], step)
         
+        pbar.close()
+        
+        # Calculate average loss
         avg_loss = epoch_loss / num_batches
         self.train_losses.append(avg_loss)
-        
-        # 清除进度条
-        pbar.close()
         
         return avg_loss
     
