@@ -1,0 +1,22 @@
+**/abct_data
+**/abct_data_cache
+**/__pycache__/
+**/*.egg-info/
+**/checkpoints/
+dist/*
+
+# 添加输出目录和大文件
+outputs/
+*.h5
+*.pt
+*.pth
+*.pkl
+*.pickle
+*.npy
+*.npz
+
+# 临时文件和缓存
+*.tmp
+.cache/
+temp/
+tmp/

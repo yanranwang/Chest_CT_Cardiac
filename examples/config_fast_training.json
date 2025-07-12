@@ -1,0 +1,63 @@
+{
+  "output_dir": "outputs/cardiac_training_fast",
+  "pretrained_model_path": "/dataNAS/people/joycewyr/Merlin/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt",
+  "num_cardiac_metrics": 2,
+  "epochs": 100,
+  "batch_size": 8,
+  "learning_rate": 1e-4,
+  "weight_decay": 1e-5,
+  "optimizer": "adamw",
+  "loss_function": "mse",
+  "scheduler": {
+    "type": "cosine",
+    "eta_min": 1e-6
+  },
+  "freeze_encoder": true,
+  "grad_clip": 1.0,
+  "device": "cuda",
+  "seed": 42,
+  "num_workers": 4,
+  "log_interval": 5,
+  "save_interval": 5,
+  "use_tensorboard": true,
+  "drop_last": true,
+  
+  "progress_bar": true,
+  "show_gpu_memory": true,
+  "show_eta": true,
+  "detailed_metrics": true,
+  
+  "train_val_split": 0.8,
+  "split_method": "random",
+  
+  "csv_path": "/dataNAS/people/joycewyr/Merlin/filtered_echo_chestCT_data_filtered_chest_data.csv",
+  "required_columns": ["basename", "folder"],
+  "cardiac_metric_columns": [],
+  "metadata_columns": ["patient_id"],
+  
+  "base_path": "/dataNAS/data/ct_data/ct_scans",
+  "image_path_template": "{base_path}/stanford_{folder}/{basename}.nii.gz",
+  "check_file_exists": false,
+  
+  "remove_missing_files": true,
+  "remove_duplicates": true,
+  
+  "_comment_fast_loader": "=== 快速数据加载器配置 ===",
+  "use_fast_loader": true,
+  "preprocessed_data_dir": "outputs/preprocessed_data",
+  "preprocess_batch_size": 8,
+  "enable_multiprocessing": false,
+  "cache_config": {
+    "enable_cache": true,
+    "cache_size": 1000,
+    "preload_train_data": false,
+    "preload_val_data": false
+  },
+  
+  "_comment_optimization": "=== 性能优化建议 ===",
+  "_comment_1": "1. 对于大内存服务器，可以增加 cache_size 到 2000-5000",
+  "_comment_2": "2. 对于小数据集，可以设置 preload_train_data: true",
+  "_comment_3": "3. 根据CPU核心数调整 num_workers 和 preprocess_batch_size",
+  "_comment_4": "4. 根据GPU内存调整 batch_size",
+  "_comment_5": "5. 首次使用时建议先用小数据集测试"
+} 
