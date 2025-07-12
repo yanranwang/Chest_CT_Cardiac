@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This project has successfully built an end-to-end cardiac function prediction system specifically designed for LVEF regression and aortic stenosis classification tasks on chest CT images. The project has completed **comprehensive training and evaluation framework development**, containing 5,200 lines of Python code and 8 core modules. Currently at the critical performance optimization stage, addressing data I/O bottlenecks through HDF5 data preprocessing pipeline, expected to improve training efficiency by 20x.
+This project has successfully built an end-to-end cardiac function prediction system specifically designed for LVEF regression and aortic stenosis classification tasks on chest CT images. The project has completed **comprehensive training and evaluation framework development**. Currently at the critical performance optimization stage, addressing data I/O bottlenecks through HDF5 data preprocessing pipeline, expected to improve training efficiency by 20x.
 
 **Core Technical Achievements**:
 - ✅ **Complete Training Pipeline**: Implemented full workflow from data loading to model evaluation
