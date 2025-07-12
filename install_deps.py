@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-训练依赖安装脚本
+Training dependency installation script
 
-该脚本会自动检查和安装心脏功能训练所需的依赖包
+This script automatically checks and installs required dependencies for cardiac training
 """
 
 import subprocess
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 def run_command(cmd):
-    """运行系统命令"""
+    """Run system command"""
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         return result.returncode == 0, result.stdout, result.stderr
@@ -21,95 +21,95 @@ def run_command(cmd):
 
 
 def check_python_version():
-    """检查Python版本"""
+    """Check Python version"""
     version = sys.version_info
     if version.major < 3 or (version.major == 3 and version.minor < 8):
-        print("❌ Python 3.8+ 是必需的")
-        print(f"当前Python版本: {version.major}.{version.minor}.{version.micro}")
+        print("❌ Python 3.8+ is required")
+        print(f"Current Python version: {version.major}.{version.minor}.{version.micro}")
         return False
-    print(f"✅ Python版本: {version.major}.{version.minor}.{version.micro}")
+    print(f"✅ Python version: {version.major}.{version.minor}.{version.micro}")
     return True
 
 
 def check_pip():
-    """检查pip是否可用"""
+    """Check if pip is available"""
     success, stdout, stderr = run_command("pip --version")
     if success:
-        print(f"✅ pip可用")
+        print(f"✅ pip available")
         return True
     else:
-        print("❌ pip不可用")
+        print("❌ pip not available")
         return False
 
 
 def install_requirements():
-    """安装requirements.txt中的依赖"""
+    """Install dependencies from requirements.txt"""
     requirements_file = Path(__file__).parent / "requirements.txt"
     
     if not requirements_file.exists():
-        print("❌ requirements.txt文件不存在")
+        print("❌ requirements.txt file not found")
         return False
     
-    print(f"📦 安装依赖包...")
-    print(f"使用文件: {requirements_file}")
+    print(f"📦 Installing dependencies...")
+    print(f"Using file: {requirements_file}")
     
-    # 先升级pip
-    print("🔄 升级pip...")
+    # Upgrade pip first
+    print("🔄 Upgrading pip...")
     success, stdout, stderr = run_command("pip install --upgrade pip")
     if not success:
-        print("⚠️  pip升级失败，继续安装...")
+        print("⚠️  pip upgrade failed, continuing...")
     
-    # 安装依赖
+    # Install dependencies
     cmd = f"pip install -r {requirements_file}"
     success, stdout, stderr = run_command(cmd)
     
     if success:
-        print("✅ 依赖安装成功")
+        print("✅ Dependencies installed successfully")
         return True
     else:
-        print("❌ 依赖安装失败")
-        print(f"错误信息: {stderr}")
+        print("❌ Dependency installation failed")
+        print(f"Error: {stderr}")
         return False
 
 
 def install_torch_with_cuda():
-    """安装支持CUDA的PyTorch"""
-    print("🔄 检查CUDA支持...")
+    """Install PyTorch with CUDA support"""
+    print("🔄 Checking CUDA support...")
     
-    # 检查CUDA是否可用
+    # Check if CUDA is available
     try:
         import torch
         if torch.cuda.is_available():
-            print("✅ PyTorch CUDA已可用")
+            print("✅ PyTorch CUDA already available")
             return True
         else:
-            print("⚠️  当前PyTorch不支持CUDA")
+            print("⚠️  Current PyTorch doesn't support CUDA")
     except ImportError:
-        print("⚠️  PyTorch未安装")
+        print("⚠️  PyTorch not installed")
     
-    # 询问是否安装CUDA版本
-    response = input("是否安装支持CUDA的PyTorch？[y/N]: ").strip().lower()
+    # Ask whether to install CUDA version
+    response = input("Install PyTorch with CUDA support? [y/N]: ").strip().lower()
     if response in ['y', 'yes']:
-        print("🔄 安装支持CUDA的PyTorch...")
+        print("🔄 Installing PyTorch with CUDA...")
         cmd = "pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118"
         success, stdout, stderr = run_command(cmd)
         if success:
-            print("✅ CUDA PyTorch安装成功")
+            print("✅ CUDA PyTorch installed successfully")
             return True
         else:
-            print("❌ CUDA PyTorch安装失败")
-            print(f"错误信息: {stderr}")
+            print("❌ CUDA PyTorch installation failed")
+            print(f"Error: {stderr}")
             return False
     else:
-        print("使用CPU版本的PyTorch")
+        print("Using CPU version of PyTorch")
         return True
 
 
 def verify_installation():
-    """验证安装"""
-    print("\n🔍 验证安装...")
+    """Verify installation"""
+    print("\n🔍 Verifying installation...")
     
-    # 检查关键包
+    # Check key packages
     packages = [
         'torch', 'torchvision', 'monai', 'tqdm', 
         'tensorboard', 'numpy', 'pandas', 'scikit-learn'
@@ -125,64 +125,64 @@ def verify_installation():
             all_success = False
     
     if all_success:
-        print("\n🎉 所有依赖验证成功！")
+        print("\n🎉 All dependencies verified!")
         
-        # 检查CUDA
+        # Check CUDA
         try:
             import torch
             if torch.cuda.is_available():
-                print(f"✅ CUDA可用: {torch.cuda.get_device_name(0)}")
-                print(f"✅ GPU数量: {torch.cuda.device_count()}")
+                print(f"✅ CUDA available: {torch.cuda.get_device_name(0)}")
+                print(f"✅ GPU count: {torch.cuda.device_count()}")
             else:
-                print("⚠️  CUDA不可用，将使用CPU训练")
+                print("⚠️  CUDA not available, will use CPU training")
         except:
             pass
         
         return True
     else:
-        print("\n❌ 部分依赖验证失败")
+        print("\n❌ Some dependencies failed verification")
         return False
 
 
 def main():
-    """主函数"""
+    """Main function"""
     print("=" * 80)
-    print("🔧 Merlin心脏功能训练依赖安装器")
+    print("🔧 Merlin Cardiac Training Dependency Installer")
     print("=" * 80)
     
-    # 检查Python版本
+    # Check Python version
     if not check_python_version():
         sys.exit(1)
     
-    # 检查pip
+    # Check pip
     if not check_pip():
-        print("请先安装pip")
+        print("Please install pip first")
         sys.exit(1)
     
-    # 安装依赖
+    # Install dependencies
     if not install_requirements():
-        print("❌ 依赖安装失败")
+        print("❌ Dependency installation failed")
         sys.exit(1)
     
-    # 安装CUDA支持（可选）
+    # Install CUDA support (optional)
     install_torch_with_cuda()
     
-    # 验证安装
+    # Verify installation
     if verify_installation():
         print("\n" + "=" * 80)
-        print("🎉 安装完成！")
+        print("🎉 Installation complete!")
         print("=" * 80)
-        print("📚 下一步:")
-        print("   1. 运行训练示例:")
+        print("📚 Next steps:")
+        print("   1. Run training example:")
         print("      cd examples")
         print("      python cardiac_training_example.py --epochs 5 --batch_size 2")
-        print("   2. 查看训练进度:")
-        print("      训练过程中会显示进度条和实时统计信息")
-        print("   3. 监控训练:")
+        print("   2. Monitor training progress:")
+        print("      Progress bars and real-time statistics will be shown during training")
+        print("   3. Monitor training:")
         print("      tensorboard --logdir outputs/cardiac_training/tensorboard")
         print("=" * 80)
     else:
-        print("\n❌ 安装验证失败，请检查错误信息")
+        print("\n❌ Installation verification failed, please check error messages")
         sys.exit(1)
 
 

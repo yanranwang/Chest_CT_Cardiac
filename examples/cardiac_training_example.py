@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-心脏功能回归训练示例
+Cardiac function regression training example
 
-该脚本展示了如何使用Merlin进行完整的心脏功能回归训练：
-1. 从CSV文件加载心脏功能数据
-2. 配置训练参数
-3. 创建数据加载器
-4. 训练心脏功能预测模型
-5. 保存训练结果和模型
+This script demonstrates how to use Merlin for complete cardiac function regression training:
+1. Load cardiac function data from CSV files
+2. Configure training parameters  
+3. Create data loaders
+4. Train cardiac function prediction model
+5. Save training results and model
 
-使用方法:
+Usage:
     python cardiac_training_example.py
     
-或自定义配置:
+With custom configuration:
     python cardiac_training_example.py --config my_config.json
 """
 
@@ -22,18 +22,18 @@ import json
 import argparse
 from pathlib import Path
 
-# 添加项目根目录到Python路径
+# Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from merlin.training.cardiac_trainer import CardiacTrainer, create_data_loaders
 
 
 def create_default_config():
-    """创建默认训练配置"""
+    """Create default training configuration"""
     config = {
         'output_dir': 'outputs/cardiac_training',
-        'pretrained_model_path': '/dataNAS/people/joycewyr/Merlin/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt',  # 使用Merlin预训练模型权重
-        'num_cardiac_metrics': 2,  # LVEF回归 + AS分类
+        'pretrained_model_path': '/dataNAS/people/joycewyr/Merlin/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt',  # Use Merlin pretrained model weights
+        'num_cardiac_metrics': 2,  # LVEF regression + AS classification
         'epochs': 100,
         'batch_size': 4,
         'learning_rate': 1e-4,
@@ -44,64 +44,64 @@ def create_default_config():
             'type': 'cosine',
             'eta_min': 1e-6
         },
-        'freeze_encoder': True,  # 重要：冻结预训练编码器进行微调
+        'freeze_encoder': True,  # Important: freeze pretrained encoder for fine-tuning
         'grad_clip': 1.0,
         'device': 'cuda',
         'seed': 42,
         'num_workers': 0,
-        'log_interval': 5,  # 更频繁的日志输出（每5个batch）
-        'save_interval': 5,  # 更频繁的模型保存（每5个epoch）
+        'log_interval': 5,  # More frequent logging (every 5 batches)
+        'save_interval': 5,  # More frequent model saving (every 5 epochs)
         'use_tensorboard': True,
-        'drop_last': True,  # 训练时必须设置为True，避免BatchNorm错误
+        'drop_last': True,  # Must be True for training to avoid BatchNorm errors
         
-        # 进度监控增强配置
-        'progress_bar': True,  # 启用进度条
-        'show_gpu_memory': True,  # 显示GPU内存使用
-        'show_eta': True,  # 显示预估剩余时间
-        'detailed_metrics': True,  # 显示详细的评估指标
+        # Progress monitoring enhancement
+        'progress_bar': True,  # Enable progress bar
+        'show_gpu_memory': True,  # Show GPU memory usage
+        'show_eta': True,  # Show estimated time remaining
+        'detailed_metrics': True,  # Show detailed evaluation metrics
         
-        # 数据分割配置
+        # Data splitting configuration
         'train_val_split': 0.8,
         'split_method': 'random',  # 'random', 'sequential', 'patient_based'
         
-        # CSV数据配置
+        # CSV data configuration
         'csv_path': '/dataNAS/people/joycewyr/Merlin/filtered_echo_chestCT_data_filtered_chest_data.csv',
         'required_columns': ['basename', 'folder'],
-        'cardiac_metric_columns': [],  # 设置为CSV中包含心脏功能指标的列名列表
-        'metadata_columns': ['patient_id'],  # 要保存的额外元数据列
+        'cardiac_metric_columns': [],  # Set to list of cardiac function metric column names in CSV
+        'metadata_columns': ['patient_id'],  # Additional metadata columns to save
         
-        # 文件路径配置
+        # File path configuration
         'base_path': '/dataNAS/data/ct_data/ct_scans',
         'image_path_template': '{base_path}/stanford_{folder}/{basename}.nii.gz',
-        'check_file_exists': False,  # 设置为True以检查文件是否存在
+        'check_file_exists': False,  # Set to True to check if files exist
         
-        # 数据清理配置
+        # Data cleaning configuration
         'remove_missing_files': True,
         'remove_duplicates': True,
         
-        # 快速数据加载器配置
-        'use_fast_loader': False,  # 设置为True以启用快速数据加载器
-        'preprocessed_data_dir': 'outputs/preprocessed_data',  # 预处理数据目录
-        'preprocess_batch_size': 16,  # 预处理批次大小
+        # Fast data loader configuration
+        'use_fast_loader': False,  # Set to True to enable fast data loader
+        'preprocessed_data_dir': 'outputs/preprocessed_data',  # Preprocessed data directory
+        'preprocess_batch_size': 16,  # Preprocessing batch size
         'cache_config': {
-            'enable_cache': True,      # 启用内存缓存
-            'cache_size': 1000,        # 缓存大小
-            'preload_train_data': False,  # 是否预加载训练数据到内存
-            'preload_val_data': False,    # 是否预加载验证数据到内存
+            'enable_cache': True,      # Enable memory cache
+            'cache_size': 1000,        # Cache size
+            'preload_train_data': False,  # Whether to preload training data to memory
+            'preload_val_data': False,    # Whether to preload validation data to memory
         }
     }
     return config
 
 
 def load_config_from_file(config_path):
-    """从JSON文件加载配置"""
+    """Load configuration from JSON file"""
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
     return config
 
 
 def save_config(config, output_path):
-    """保存配置到JSON文件"""
+    """Save configuration to JSON file"""
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -110,28 +110,28 @@ def save_config(config, output_path):
 
 
 def print_training_info(config):
-    """打印训练配置信息"""
+    """Print training configuration information"""
     print("=" * 80)
-    print("🔧 训练配置信息")
+    print("🔧 Training Configuration")
     print("=" * 80)
-    print(f"📁 输出目录: {config['output_dir']}")
-    print(f"📊 CSV文件: {config['csv_path']}")
-    print(f"🏥 数据路径: {config['base_path']}")
-    print(f"🎯 训练轮数: {config['epochs']}")
-    print(f"📦 批量大小: {config['batch_size']}")
-    print(f"🎓 学习率: {config['learning_rate']}")
-    print(f"🔧 优化器: {config['optimizer']}")
-    print(f"💾 日志间隔: {config['log_interval']} batches")
-    print(f"💾 保存间隔: {config['save_interval']} epochs")
-    print(f"🖥️  设备: {config['device']}")
+    print(f"📁 Output directory: {config['output_dir']}")
+    print(f"📊 CSV file: {config['csv_path']}")
+    print(f"🏥 Data path: {config['base_path']}")
+    print(f"🎯 Epochs: {config['epochs']}")
+    print(f"📦 Batch size: {config['batch_size']}")
+    print(f"🎓 Learning rate: {config['learning_rate']}")
+    print(f"🔧 Optimizer: {config['optimizer']}")
+    print(f"💾 Log interval: {config['log_interval']} batches")
+    print(f"💾 Save interval: {config['save_interval']} epochs")
+    print(f"🖥️  Device: {config['device']}")
     print(f"📈 TensorBoard: {'✅' if config['use_tensorboard'] else '❌'}")
-    print(f"🎯 数据分割: {config['train_val_split']:.1%} 训练 / {1-config['train_val_split']:.1%} 验证")
+    print(f"🎯 Data split: {config['train_val_split']:.1%} train / {1-config['train_val_split']:.1%} val")
     print("=" * 80)
 
 
 def check_dependencies():
-    """检查训练所需的依赖"""
-    print("🔍 检查训练依赖...")
+    """Check required dependencies for training"""
+    print("🔍 Checking training dependencies...")
     
     missing_deps = []
     
@@ -139,27 +139,27 @@ def check_dependencies():
         import torch
         print(f"✅ PyTorch {torch.__version__}")
         if torch.cuda.is_available():
-            print(f"✅ CUDA 可用, {torch.cuda.device_count()} GPU(s)")
+            print(f"✅ CUDA available, {torch.cuda.device_count()} GPU(s)")
             for i in range(torch.cuda.device_count()):
                 print(f"   GPU {i}: {torch.cuda.get_device_name(i)}")
         else:
-            print("⚠️  CUDA 不可用，将使用CPU训练")
+            print("⚠️  CUDA not available, will use CPU training")
     except ImportError:
         missing_deps.append("torch")
     
     try:
         import tqdm
-        print(f"✅ tqdm (进度条)")
+        print(f"✅ tqdm (progress bars)")
     except ImportError:
         missing_deps.append("tqdm")
-        print("❌ tqdm 未安装，进度条将不可用")
+        print("❌ tqdm not installed, progress bars will be unavailable")
     
     try:
         import tensorboard
         print(f"✅ TensorBoard")
     except ImportError:
         missing_deps.append("tensorboard")
-        print("❌ TensorBoard 未安装，训练可视化将不可用")
+        print("❌ TensorBoard not installed, training visualization will be unavailable")
     
     try:
         import monai
@@ -168,116 +168,116 @@ def check_dependencies():
         missing_deps.append("monai")
     
     if missing_deps:
-        print(f"\n⚠️  缺少依赖: {', '.join(missing_deps)}")
-        print("请运行以下命令安装:")
+        print(f"\n⚠️  Missing dependencies: {', '.join(missing_deps)}")
+        print("Please run the following command to install:")
         print(f"pip install {' '.join(missing_deps)}")
         return False
     
-    print("✅ 所有依赖已安装")
+    print("✅ All dependencies installed")
     return True
 
 
 def main():
-    """主训练函数"""
-    parser = argparse.ArgumentParser(description='心脏功能回归训练示例')
-    parser.add_argument('--config', type=str, help='配置文件路径 (JSON格式)')
-    parser.add_argument('--output_dir', type=str, help='输出目录路径')
-    parser.add_argument('--csv_path', type=str, help='CSV数据文件路径')
-    parser.add_argument('--epochs', type=int, help='训练轮数')
-    parser.add_argument('--batch_size', type=int, help='批量大小')
-    parser.add_argument('--learning_rate', type=float, help='学习率')
-    parser.add_argument('--log_interval', type=int, help='日志输出间隔')
-    parser.add_argument('--save_interval', type=int, help='模型保存间隔')
-    parser.add_argument('--device', type=str, choices=['cuda', 'cpu', 'auto'], help='训练设备')
-    parser.add_argument('--use_pretrained', type=bool, default=True, help='是否使用预训练权重')
-    parser.add_argument('--use_fast_loader', action='store_true', help='使用快速数据加载器')
-    parser.add_argument('--preprocessed_data_dir', type=str, help='预处理数据目录')
-    parser.add_argument('--preprocess_batch_size', type=int, help='预处理批次大小')
+    """Main training function"""
+    parser = argparse.ArgumentParser(description='Cardiac function regression training example')
+    parser.add_argument('--config', type=str, help='Configuration file path (JSON format)')
+    parser.add_argument('--output_dir', type=str, help='Output directory path')
+    parser.add_argument('--csv_path', type=str, help='CSV data file path')
+    parser.add_argument('--epochs', type=int, help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, help='Batch size')
+    parser.add_argument('--learning_rate', type=float, help='Learning rate')
+    parser.add_argument('--log_interval', type=int, help='Logging interval')
+    parser.add_argument('--save_interval', type=int, help='Model saving interval')
+    parser.add_argument('--device', type=str, choices=['cuda', 'cpu', 'auto'], help='Training device')
+    parser.add_argument('--use_pretrained', type=bool, default=True, help='Whether to use pretrained weights')
+    parser.add_argument('--use_fast_loader', action='store_true', help='Use fast data loader')
+    parser.add_argument('--preprocessed_data_dir', type=str, help='Preprocessed data directory')
+    parser.add_argument('--preprocess_batch_size', type=int, help='Preprocessing batch size')
     
     args = parser.parse_args()
     
-    # 检查依赖
+    # Check dependencies
     if not check_dependencies():
-        print("❌ 依赖检查失败，请先安装缺少的依赖包")
+        print("❌ Dependency check failed, please install missing packages first")
         return
     
-    # 加载配置
+    # Load configuration
     if args.config:
-        print(f"📋 从文件加载配置: {args.config}")
+        print(f"📋 Loading configuration from file: {args.config}")
         config = load_config_from_file(args.config)
     else:
-        print("📋 使用默认配置")
+        print("📋 Using default configuration")
         config = create_default_config()
     
-            # 验证和处理Merlin预训练权重
-        if args.use_pretrained and config.get('pretrained_model_path'):
-            print("\n🔍 检查Merlin预训练权重...")
-            pretrained_path = config['pretrained_model_path']
-            
-            # 如果权重文件不存在，尝试自动下载
-            if not os.path.exists(pretrained_path):
-                print(f"❌ 预训练权重文件不存在: {pretrained_path}")
-                print("🔄 尝试自动下载Merlin预训练权重...")
-                
-                try:
-                    # 使用Merlin内置的权重下载功能
-                    from merlin import Merlin
-                    merlin_model = Merlin()  # 这会自动下载权重
-                    
-                    # 获取实际的权重路径
-                    actual_checkpoint_path = os.path.join(
-                        merlin_model.current_path, 
-                        'checkpoints', 
-                        merlin_model.checkpoint_name
-                    )
-                    
-                    if os.path.exists(actual_checkpoint_path):
-                        config['pretrained_model_path'] = actual_checkpoint_path
-                        print(f"✅ 成功下载并设置预训练权重: {actual_checkpoint_path}")
-                    else:
-                        print("❌ 自动下载失败，将使用随机初始化权重")
-                        config['pretrained_model_path'] = None
-                        
-                except Exception as e:
-                    print(f"❌ 自动下载权重失败: {e}")
-                    print("将使用随机初始化权重继续训练")
-                    config['pretrained_model_path'] = None
-            else:
-                print(f"✅ 找到预训练权重文件: {pretrained_path}")
+    # Validate and handle Merlin pretrained weights
+    if args.use_pretrained and config.get('pretrained_model_path'):
+        print("\n🔍 Checking Merlin pretrained weights...")
+        pretrained_path = config['pretrained_model_path']
         
-        # 检查是否使用快速数据加载器
-        use_fast_loader = config.get('use_fast_loader', False)
-        if use_fast_loader:
-            print("\n🚀 使用快速数据加载器模式")
-            preprocessed_data_dir = config.get('preprocessed_data_dir')
-            if not preprocessed_data_dir:
-                print("❌ 使用快速数据加载器需要设置 preprocessed_data_dir")
-                print("请先运行数据预处理脚本:")
-                print("  python -m merlin.training.data_preprocessor --config config.json")
-                return
+        # If weights file doesn't exist, try to download automatically
+        if not os.path.exists(pretrained_path):
+            print(f"❌ Pretrained weights file not found: {pretrained_path}")
+            print("🔄 Attempting to auto-download Merlin pretrained weights...")
             
-            # 检查预处理数据文件
-            hdf5_path = Path(preprocessed_data_dir) / 'preprocessed_data.h5'
-            metadata_path = Path(preprocessed_data_dir) / 'data_metadata.json'
-            
-            if not hdf5_path.exists():
-                print(f"❌ 预处理数据文件不存在: {hdf5_path}")
-                print("请先运行数据预处理脚本:")
-                print("  python -m merlin.training.data_preprocessor --config config.json")
-                return
-            
-            if not metadata_path.exists():
-                print(f"❌ 元数据文件不存在: {metadata_path}")
-                print("请先运行数据预处理脚本:")
-                print("  python -m merlin.training.data_preprocessor --config config.json")
-                return
-            
-            print(f"✅ 找到预处理数据: {hdf5_path}")
-            print(f"✅ 找到元数据文件: {metadata_path}")
+            try:
+                # Use Merlin's built-in weight download functionality
+                from merlin import Merlin
+                merlin_model = Merlin()  # This will automatically download weights
+                
+                # Get actual weights path
+                actual_checkpoint_path = os.path.join(
+                    merlin_model.current_path, 
+                    'checkpoints', 
+                    merlin_model.checkpoint_name
+                )
+                
+                if os.path.exists(actual_checkpoint_path):
+                    config['pretrained_model_path'] = actual_checkpoint_path
+                    print(f"✅ Successfully downloaded and set pretrained weights: {actual_checkpoint_path}")
+                else:
+                    print("❌ Auto-download failed, will use randomly initialized weights")
+                    config['pretrained_model_path'] = None
+                    
+            except Exception as e:
+                print(f"❌ Auto-download weights failed: {e}")
+                print("Will continue training with randomly initialized weights")
+                config['pretrained_model_path'] = None
         else:
-            print("\n📁 使用标准数据加载器模式")
+            print(f"✅ Found pretrained weights file: {pretrained_path}")
     
-    # 命令行参数覆盖配置
+    # Check if using fast data loader
+    use_fast_loader = config.get('use_fast_loader', False)
+    if use_fast_loader:
+        print("\n🚀 Using fast data loader mode")
+        preprocessed_data_dir = config.get('preprocessed_data_dir')
+        if not preprocessed_data_dir:
+            print("❌ Fast data loader requires preprocessed_data_dir setting")
+            print("Please run data preprocessing script first:")
+            print("  python -m merlin.training.data_preprocessor --config config.json")
+            return
+        
+        # Check preprocessed data files
+        hdf5_path = Path(preprocessed_data_dir) / 'preprocessed_data.h5'
+        metadata_path = Path(preprocessed_data_dir) / 'data_metadata.json'
+        
+        if not hdf5_path.exists():
+            print(f"❌ Preprocessed data file not found: {hdf5_path}")
+            print("Please run data preprocessing script first:")
+            print("  python -m merlin.training.data_preprocessor --config config.json")
+            return
+        
+        if not metadata_path.exists():
+            print(f"❌ Metadata file not found: {metadata_path}")
+            print("Please run data preprocessing script first:")
+            print("  python -m merlin.training.data_preprocessor --config config.json")
+            return
+        
+        print(f"✅ Found preprocessed data: {hdf5_path}")
+        print(f"✅ Found metadata file: {metadata_path}")
+    else:
+        print("\n📁 Using standard data loader mode")
+    
+    # Command line arguments override configuration
     if args.output_dir:
         config['output_dir'] = args.output_dir
     if args.csv_path:
@@ -301,69 +301,69 @@ def main():
     if args.preprocess_batch_size:
         config['preprocess_batch_size'] = args.preprocess_batch_size
     
-    # 打印配置信息
+    # Print configuration
     print_training_info(config)
     
-    # 保存配置
+    # Save configuration
     output_dir = Path(config['output_dir'])
     config_save_path = output_dir / 'config.json'
     save_config(config, config_save_path)
-    print(f"📁 配置已保存到: {config_save_path}")
+    print(f"📁 Configuration saved to: {config_save_path}")
     
     try:
-        # 创建数据加载器
-        print("\n📂 创建数据加载器...")
+        # Create data loaders
+        print("\n📂 Creating data loaders...")
         use_fast_loader = config.get('use_fast_loader', False)
         
         if use_fast_loader:
-            # 使用快速数据加载器
+            # Use fast data loader
             from merlin.training.fast_dataloader import create_fast_data_loaders
             train_loader, val_loader = create_fast_data_loaders(config)
-            print(f"✅ 使用快速数据加载器 - 训练集: {len(train_loader.dataset)}, 验证集: {len(val_loader.dataset)}")
+            print(f"✅ Using fast data loader - Train: {len(train_loader.dataset)}, Val: {len(val_loader.dataset)}")
         else:
-            # 使用标准数据加载器
+            # Use standard data loader
             train_loader, val_loader = create_data_loaders(config)
-            print(f"✅ 使用标准数据加载器 - 训练集: {len(train_loader.dataset)}, 验证集: {len(val_loader.dataset)}")
+            print(f"✅ Using standard data loader - Train: {len(train_loader.dataset)}, Val: {len(val_loader.dataset)}")
         
-        # 创建训练器
-        print("\n🤖 初始化训练器...")
+        # Create trainer
+        print("\n🤖 Initializing trainer...")
         trainer = CardiacTrainer(config)
         
-        # 开始训练
-        print("\n🚀 开始训练...")
+        # Start training
+        print("\n🚀 Starting training...")
         trainer.train(train_loader, val_loader)
         
-        # 训练完成后的信息
-        print("\n🎉 训练完成！")
+        # Post-training information
+        print("\n🎉 Training completed!")
         print("=" * 80)
-        print("📁 输出文件:")
-        print(f"   🏆 最佳模型: {config['output_dir']}/best_model.pth")
-        print(f"   📊 训练日志: {config['output_dir']}/training.log")
-        print(f"   ⚙️  配置文件: {config['output_dir']}/config.json")
+        print("📁 Output files:")
+        print(f"   🏆 Best model: {config['output_dir']}/best_model.pth")
+        print(f"   📊 Training log: {config['output_dir']}/training.log")
+        print(f"   ⚙️  Configuration: {config['output_dir']}/config.json")
         print(f"   📈 TensorBoard: {config['output_dir']}/tensorboard")
-        print("\n💡 下一步:")
-        print("   1. 查看训练日志了解详细信息")
-        print("   2. 使用TensorBoard可视化训练过程:")
+        print("\n💡 Next steps:")
+        print("   1. Review training logs for detailed information")
+        print("   2. Visualize training process with TensorBoard:")
         print(f"      tensorboard --logdir {config['output_dir']}/tensorboard")
-        print("   3. 使用训练好的模型进行预测")
-        print("   4. 加速训练提示:")
-        print("      - 预处理数据以加速后续训练:")
+        print("   3. Use trained model for prediction")
+        print("   4. Training acceleration tips:")
+        print("      - Preprocess data to accelerate future training:")
         print("        python -m merlin.training.data_preprocessor --config config.json")
-        print("      - 使用快速数据加载器:")
+        print("      - Use fast data loader:")
         print("        python cardiac_training_example.py --use_fast_loader --preprocessed_data_dir outputs/preprocessed_data")
         print("=" * 80)
         
     except KeyboardInterrupt:
-        print("\n⚠️  训练被用户中断")
-        print("已保存的检查点可用于恢复训练")
+        print("\n⚠️  Training interrupted by user")
+        print("Saved checkpoints can be used to resume training")
     except Exception as e:
-        print(f"\n❌ 训练过程中发生错误: {e}")
-        print("\n🔍 故障排除建议:")
-        print("   1. 检查CSV文件路径是否正确")
-        print("   2. 检查数据目录路径是否存在")
-        print("   3. 检查GPU内存是否足够（可尝试减小batch_size）")
-        print("   4. 检查磁盘空间是否充足")
-        print("   5. 查看完整错误信息:")
+        print(f"\n❌ Error occurred during training: {e}")
+        print("\n🔍 Troubleshooting suggestions:")
+        print("   1. Check if CSV file path is correct")
+        print("   2. Check if data directory path exists")
+        print("   3. Check if GPU memory is sufficient (try reducing batch_size)")
+        print("   4. Check if disk space is sufficient")
+        print("   5. See full error information:")
         raise
 
 
