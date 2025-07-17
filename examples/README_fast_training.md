@@ -40,7 +40,7 @@
   "num_workers": 4,
   
   "use_fast_loader": true,
-  "preprocessed_data_dir": "outputs/preprocessed_data",
+  "preprocessed_data_dir": "/data/joycewyr/cardiac_training_fast",
   "preprocess_batch_size": 16,
   "cache_config": {
     "enable_cache": true,
@@ -79,7 +79,7 @@ python cardiac_training_example.py --config config.json --use_fast_loader
 # 或者直接指定参数
 python cardiac_training_example.py \
   --use_fast_loader \
-  --preprocessed_data_dir outputs/preprocessed_data \
+  --preprocessed_data_dir /data/joycewyr/cardiac_training_fast \
   --batch_size 8 \
   --epochs 100
 ```

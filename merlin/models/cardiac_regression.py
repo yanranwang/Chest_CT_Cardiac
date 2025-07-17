@@ -100,8 +100,7 @@ class CardiacPredictionHead(nn.Module):
             nn.Linear(prev_dim, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, 1),  # AS存在性输出 (sigmoid激活)
-            nn.Sigmoid()
+            nn.Linear(64, 1)  # AS存在性输出 (不在这里加sigmoid，在forward中处理)
         )
         
         # 初始化权重
@@ -135,8 +134,9 @@ class CardiacPredictionHead(nn.Module):
         # LVEF回归预测
         lvef_pred = self.lvef_regressor(shared_feat)
         
-        # AS分类预测
-        as_pred = self.as_classifier(shared_feat)
+        # AS分类预测 - 使用稳定的sigmoid激活
+        as_logits = self.as_classifier(shared_feat)
+        as_pred = torch.sigmoid(torch.clamp(as_logits, min=-10, max=10))
         
         return lvef_pred, as_pred
 
@@ -288,27 +288,40 @@ class CardiacLoss(nn.Module):
         # 回归损失：均方误差
         self.regression_loss = nn.MSELoss()
         
-        # 分类损失：加权二元交叉熵
-        if class_weights is not None:
-            # 处理类别不平衡
-            pos_weight = class_weights[1] / class_weights[0]
-            self.classification_loss = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-        else:
-            self.classification_loss = nn.BCELoss()
+        # 分类损失：始终使用BCELoss，避免BCEWithLogitsLoss的冲突
+        # 因为AS分类器输出已经经过sigmoid激活
+        self.classification_loss = nn.BCELoss()
+        
+        # 存储类别权重以供手动应用
+        self.class_weights = class_weights
     
     def forward(self, lvef_pred, as_pred, lvef_true, as_true):
         """
         Args:
             lvef_pred: LVEF预测值 [batch_size, 1]
-            as_pred: AS预测概率 [batch_size, 1]
+            as_pred: AS预测概率 [batch_size, 1] (已经过sigmoid激活)
             lvef_true: LVEF真实值 [batch_size]
             as_true: AS真实标签 [batch_size]
         """
         # LVEF回归损失
         reg_loss = self.regression_loss(lvef_pred.squeeze(), lvef_true)
         
-        # AS分类损失
-        clf_loss = self.classification_loss(as_pred.squeeze(), as_true)
+        # AS分类损失 - 添加数值稳定性保护
+        as_pred_clamped = torch.clamp(as_pred.squeeze(), min=1e-7, max=1.0 - 1e-7)
+        as_true_clamped = torch.clamp(as_true, min=0.0, max=1.0)
+        
+        # 计算基础BCE损失
+        clf_loss = self.classification_loss(as_pred_clamped, as_true_clamped)
+        
+        # 如果提供了类别权重，手动应用权重
+        if self.class_weights is not None:
+            # 计算正类和负类的权重
+            pos_weight = self.class_weights[1] if len(self.class_weights) > 1 else 1.0
+            neg_weight = self.class_weights[0] if len(self.class_weights) > 0 else 1.0
+            
+            # 应用权重
+            weights = as_true_clamped * pos_weight + (1 - as_true_clamped) * neg_weight
+            clf_loss = clf_loss * weights.mean()
         
         # 组合损失
         total_loss = (self.regression_weight * reg_loss + 

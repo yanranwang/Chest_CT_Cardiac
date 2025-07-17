@@ -32,7 +32,7 @@ def create_default_config():
     """Create default training configuration"""
     config = {
         'output_dir': 'outputs/cardiac_training',
-        'pretrained_model_path': '/dataNAS/people/joycewyr/Merlin/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt',  # Use Merlin pretrained model weights
+        'pretrained_model_path': '/dataNAS/people/joycewyr/Chest_CT_Cardiac/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt',  # Use Merlin pretrained model weights
         'num_cardiac_metrics': 2,  # LVEF regression + AS classification
         'epochs': 100,
         'batch_size': 4,
@@ -48,7 +48,7 @@ def create_default_config():
         'grad_clip': 1.0,
         'device': 'cuda',
         'seed': 42,
-        'num_workers': 0,
+        'num_workers': 8,
         'log_interval': 5,  # More frequent logging (every 5 batches)
         'save_interval': 5,  # More frequent model saving (every 5 epochs)
         'use_tensorboard': True,
@@ -65,7 +65,7 @@ def create_default_config():
         'split_method': 'random',  # 'random', 'sequential', 'patient_based'
         
         # CSV data configuration
-        'csv_path': '/dataNAS/people/joycewyr/Merlin/filtered_echo_chestCT_data_filtered_chest_data.csv',
+        'csv_path': '/dataNAS/people/joycewyr/Chest_CT_Cardiac/filtered_echo_chestCT_data_filtered_chest_data.csv',
         'required_columns': ['basename', 'folder'],
         'cardiac_metric_columns': [],  # Set to list of cardiac function metric column names in CSV
         'metadata_columns': ['patient_id'],  # Additional metadata columns to save
@@ -81,7 +81,7 @@ def create_default_config():
         
         # Fast data loader configuration
         'use_fast_loader': False,  # Set to True to enable fast data loader
-        'preprocessed_data_dir': 'outputs/preprocessed_data',  # Preprocessed data directory
+        'preprocessed_data_dir': '/data/joycewyr/cardiac_training_fast',  # Preprocessed data directory
         'preprocess_batch_size': 16,  # Preprocessing batch size
         'cache_config': {
             'enable_cache': True,      # Enable memory cache
@@ -193,6 +193,7 @@ def main():
     parser.add_argument('--use_fast_loader', action='store_true', help='Use fast data loader')
     parser.add_argument('--preprocessed_data_dir', type=str, help='Preprocessed data directory')
     parser.add_argument('--preprocess_batch_size', type=int, help='Preprocessing batch size')
+    parser.add_argument('--num_workers', type=int, help='Number of data loading workers')
     
     args = parser.parse_args()
     
@@ -300,6 +301,8 @@ def main():
         config['preprocessed_data_dir'] = args.preprocessed_data_dir
     if args.preprocess_batch_size:
         config['preprocess_batch_size'] = args.preprocess_batch_size
+    if args.num_workers:
+        config['num_workers'] = args.num_workers
     
     # Print configuration
     print_training_info(config)
@@ -350,7 +353,7 @@ def main():
         print("      - Preprocess data to accelerate future training:")
         print("        python -m merlin.training.data_preprocessor --config config.json")
         print("      - Use fast data loader:")
-        print("        python cardiac_training_example.py --use_fast_loader --preprocessed_data_dir outputs/preprocessed_data")
+        print("        python cardiac_training_example.py --use_fast_loader --preprocessed_data_dir /data/joycewyr/cardiac_training_fast")
         print("=" * 80)
         
     except KeyboardInterrupt:
