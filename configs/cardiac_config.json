@@ -1,0 +1,53 @@
+{
+  "output_dir": "outputs/cardiac_training",
+  "pretrained_model_path": "/dataNAS/people/joycewyr/Chest_CT_Cardiac/merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt",
+  "num_cardiac_metrics": 2,
+  "epochs": 100,
+  "batch_size": 4,
+  "learning_rate": 0.0001,
+  "weight_decay": 1e-05,
+  "optimizer": "adamw",
+  "loss_function": "mse",
+  "scheduler": {
+    "type": "cosine",
+    "eta_min": 1e-06
+  },
+  "freeze_encoder": true,
+  "grad_clip": 1.0,
+  "device": "cuda",
+  "seed": 42,
+  "num_workers": 8,
+  "log_interval": 5,
+  "save_interval": 5,
+  "use_tensorboard": true,
+  "drop_last": true,
+  "progress_bar": true,
+  "show_gpu_memory": true,
+  "show_eta": true,
+  "detailed_metrics": true,
+  "train_val_split": 0.8,
+  "split_method": "random",
+  "csv_path": "/dataNAS/people/joycewyr/Chest_CT_Cardiac/filtered_echo_chestCT_data_filtered_chest_data.csv",
+  "required_columns": [
+    "basename",
+    "folder"
+  ],
+  "cardiac_metric_columns": [],
+  "metadata_columns": [
+    "patient_id"
+  ],
+  "base_path": "/dataNAS/data/ct_data/ct_scans",
+  "image_path_template": "{base_path}/stanford_{folder}/{basename}.nii.gz",
+  "check_file_exists": false,
+  "remove_missing_files": true,
+  "remove_duplicates": true,
+  "use_fast_loader": false,
+  "preprocessed_data_dir": "/data/joycewyr/cardiac_training_fast",
+  "preprocess_batch_size": 16,
+  "cache_config": {
+    "enable_cache": true,
+    "cache_size": 1000,
+    "preload_train_data": false,
+    "preload_val_data": false
+  }
+}

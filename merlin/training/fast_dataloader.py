@@ -69,6 +69,9 @@ class FastCardiacDataset(Dataset):
         # Validate item IDs
         self._validate_item_ids()
         
+        # Setup logging first (before preloading data)
+        self.logger = logging.getLogger(__name__)
+        
         # Initialize cache
         self._cache = {} if enable_cache else None
         self._cache_lock = threading.Lock() if enable_cache else None
@@ -76,9 +79,6 @@ class FastCardiacDataset(Dataset):
         # Preload data
         if preload_data:
             self._preload_all_data()
-        
-        # Setup logging
-        self.logger = logging.getLogger(__name__)
     
     def _load_metadata_index(self) -> Dict[str, Any]:
         """Load metadata index"""
@@ -421,7 +421,7 @@ def benchmark_data_loading(config: Dict[str, Any], num_batches: int = 10) -> Dic
 if __name__ == '__main__':
     # Test fast data loader
     config = {
-        'preprocessed_data_dir': 'outputs/preprocessed_data',
+        'preprocessed_data_dir': '/data/joycewyr/cardiac_training_fast',
         'batch_size': 4,
         'num_workers': 4,
         'split_method': 'random',
