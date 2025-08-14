@@ -317,8 +317,14 @@ def main():
         # Create data loaders
         print("\n📂 Creating data loaders...")
         use_fast_loader = config.get('use_fast_loader', False)
+        use_hybrid_loader = config.get('use_hybrid_loader', False)
         
-        if use_fast_loader:
+        if use_hybrid_loader:
+            # Use hybrid data loader (CSV labels + HDF5 images)
+            from merlin.training.fast_dataloader import create_hybrid_dataloaders_from_config
+            train_loader, val_loader = create_hybrid_dataloaders_from_config(config)
+            print(f"✅ Using hybrid data loader (CSV+HDF5) - Train: {len(train_loader.dataset)}, Val: {len(val_loader.dataset)}")
+        elif use_fast_loader:
             # Use fast data loader
             from merlin.training.fast_dataloader import create_fast_data_loaders
             train_loader, val_loader = create_fast_data_loaders(config)

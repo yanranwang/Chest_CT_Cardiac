@@ -7,7 +7,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.tensorboard import SummaryWriter
+try:
+    from torch.utils.tensorboard import SummaryWriter
+    TENSORBOARD_AVAILABLE = True
+except ImportError:
+    TENSORBOARD_AVAILABLE = False
+    SummaryWriter = None
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 import monai
@@ -48,13 +53,16 @@ class CardiacDataset(Dataset):
         if 'cardiac_metrics' in sample and sample['cardiac_metrics'] is not None:
             cardiac_metrics = torch.tensor(sample['cardiac_metrics'], dtype=torch.float32)
         else:
-            # 如果没有真实标签，生成模拟数据用于演示
-            cardiac_metrics = torch.tensor(self._generate_dummy_labels(), dtype=torch.float32)
+            # 如果没有真实标签，抛出错误而不是使用模拟数据
+            raise ValueError(f"样本 {idx} (patient_id: {sample.get('patient_id', 'unknown')}) 缺少心脏功能标签数据。"
+                           f"请确保CSV文件中包含有效的心脏功能指标列，或检查数据预处理过程。")
         
         # 确保标签包含LVEF和AS两个值
         if len(cardiac_metrics) < 2:
-            # 如果标签数量不足，使用模拟数据
-            cardiac_metrics = torch.tensor(self._generate_dummy_labels(), dtype=torch.float32)
+            # 如果标签数量不足，抛出错误而不是使用模拟数据
+            raise ValueError(f"样本 {idx} (patient_id: {sample.get('patient_id', 'unknown')}) 的心脏功能标签数量不足。"
+                           f"期望至少2个标签(LVEF和AS)，但只有 {len(cardiac_metrics)} 个。"
+                           f"请检查cardiac_metric_columns配置和CSV数据。")
         
         return {
             'image': sample['image'],
@@ -66,17 +74,6 @@ class CardiacDataset(Dataset):
             'metadata': sample.get('metadata', {})
         }
     
-    def _generate_dummy_labels(self):
-        """生成模拟的心脏功能标签（用于演示）"""
-        # 生成LVEF和AS的模拟数据
-        # LVEF: 正常范围约50-70%，这里生成标准化值
-        lvef = np.float32(np.random.normal(0, 1))
-        # AS: 二分类，0或1
-        as_label = np.float32(np.random.randint(0, 2))
-        
-        return np.array([lvef, as_label], dtype=np.float32)
-
-
 class CardiacTrainer:
     """Cardiac function regression trainer"""
     
@@ -111,10 +108,12 @@ class CardiacTrainer:
         self.epoch_times = []
         
         # Initialize tensorboard writer
-        if config.get('use_tensorboard', True):
+        if config.get('use_tensorboard', True) and TENSORBOARD_AVAILABLE:
             self.writer = SummaryWriter(self.output_dir / 'tensorboard')
         else:
             self.writer = None
+            if config.get('use_tensorboard', True) and not TENSORBOARD_AVAILABLE:
+                self.logger.warning("TensorBoard不可用，跳过TensorBoard日志记录")
     
     def _set_random_seed(self, seed):
         """Set random seed"""
@@ -203,12 +202,136 @@ class CardiacTrainer:
         regression_weight = self.config.get('regression_weight', 1.0)
         classification_weight = self.config.get('classification_weight', 1.0)
         
+        # 计算类别权重（如果启用）
+        class_weights = None
+        if self.config.get('use_class_weights', False):
+            class_weights = self._calculate_class_weights()
+            if class_weights is not None:
+                self.logger.info(f"使用类别权重: {class_weights.tolist()}")
+        
         criterion = CardiacLoss(
             regression_weight=regression_weight,
-            classification_weight=classification_weight
+            classification_weight=classification_weight,
+            class_weights=class_weights
         )
         
         return criterion
+    
+    def _calculate_class_weights(self):
+        """计算AS分类的类别权重"""
+        try:
+            if hasattr(self, 'train_loader') and self.train_loader is not None:
+                # 从训练数据加载器中统计标签分布
+                as_labels = []
+                for batch in self.train_loader:
+                    if 'as_maybe' in batch:
+                        as_labels.extend(batch['as_maybe'].cpu().numpy())
+                    elif 'AS_maybe' in batch:
+                        as_labels.extend(batch['AS_maybe'].cpu().numpy())
+                    elif 'labels' in batch and len(batch['labels'].shape) > 1:
+                        # 假设AS标签是第二列
+                        as_labels.extend(batch['labels'][:, 1].cpu().numpy())
+                
+                if len(as_labels) > 0:
+                    as_labels = np.array(as_labels)
+                    unique, counts = np.unique(as_labels, return_counts=True)
+                    total = len(as_labels)
+                    
+                    # 计算权重：总数 / (类别数 * 每类样本数)
+                    weights = total / (len(unique) * counts)
+                    
+                    # 创建权重张量，索引对应类别标签
+                    class_weights = torch.zeros(2)  # 假设只有0和1两类
+                    for i, label in enumerate(unique):
+                        class_weights[int(label)] = weights[i]
+                    
+                    return class_weights
+            
+            return None
+        except Exception as e:
+            self.logger.warning(f"计算类别权重失败: {e}")
+            return None
+    
+    def _print_label_distribution(self):
+        """打印训练和验证集的标签分布"""
+        try:
+            self.logger.info("=" * 60)
+            self.logger.info("📊 数据集标签分布统计")
+            self.logger.info("=" * 60)
+            
+            # 统计训练集
+            if hasattr(self, 'train_loader') and self.train_loader is not None:
+                train_stats = self._get_dataset_stats(self.train_loader, "训练集")
+                
+            # 统计验证集
+            if hasattr(self, 'val_loader') and self.val_loader is not None:
+                val_stats = self._get_dataset_stats(self.val_loader, "验证集")
+                
+            self.logger.info("=" * 60)
+            
+        except Exception as e:
+            self.logger.warning(f"统计标签分布失败: {e}")
+    
+    def _get_dataset_stats(self, dataloader, dataset_name):
+        """获取数据集统计信息"""
+        lvef_values = []
+        as_labels = []
+        
+        # 临时设置为评估模式以避免影响训练
+        original_training = self.model.training
+        self.model.eval()
+        
+        try:
+            with torch.no_grad():
+                for i, batch in enumerate(dataloader):
+                    # 只统计前几个batch以加快速度
+                    if i >= 10:  # 最多统计10个batch
+                        break
+                        
+                    if 'lvef' in batch:
+                        lvef_values.extend(batch['lvef'].cpu().numpy())
+                    if 'as_maybe' in batch:
+                        as_labels.extend(batch['as_maybe'].cpu().numpy())
+                    elif 'AS_maybe' in batch:
+                        as_labels.extend(batch['AS_maybe'].cpu().numpy())
+                    elif 'labels' in batch and len(batch['labels'].shape) > 1:
+                        lvef_values.extend(batch['labels'][:, 0].cpu().numpy())
+                        as_labels.extend(batch['labels'][:, 1].cpu().numpy())
+        finally:
+            # 恢复原始训练模式
+            self.model.train(original_training)
+        
+        # 统计LVEF
+        if len(lvef_values) > 0:
+            lvef_values = np.array(lvef_values)
+            self.logger.info(f"{dataset_name} LVEF统计:")
+            self.logger.info(f"  样本数: {len(lvef_values)}")
+            self.logger.info(f"  均值: {lvef_values.mean():.2f}")
+            self.logger.info(f"  标准差: {lvef_values.std():.2f}")
+            self.logger.info(f"  范围: [{lvef_values.min():.2f}, {lvef_values.max():.2f}]")
+        
+        # 统计AS标签
+        if len(as_labels) > 0:
+            as_labels = np.array(as_labels)
+            unique, counts = np.unique(as_labels, return_counts=True)
+            total = len(as_labels)
+            
+            self.logger.info(f"{dataset_name} AS分类统计:")
+            self.logger.info(f"  总样本数: {total}")
+            for label, count in zip(unique, counts):
+                percentage = (count / total) * 100
+                self.logger.info(f"  类别 {int(label)}: {count} 样本 ({percentage:.1f}%)")
+            
+            # 计算正负样本比例
+            if len(unique) == 2:
+                pos_count = counts[unique == 1][0] if 1 in unique else 0
+                neg_count = counts[unique == 0][0] if 0 in unique else 0
+                if neg_count > 0:
+                    ratio = pos_count / neg_count
+                    self.logger.info(f"  正负样本比例: 1:{ratio:.2f}")
+        
+        return {'lvef_stats': lvef_values if len(lvef_values) > 0 else None,
+                'as_stats': as_labels if len(as_labels) > 0 else None}
     
     def _setup_logging(self):
         """Setup logging"""
@@ -446,6 +569,10 @@ class CardiacTrainer:
         """完整训练流程"""
         epochs = self.config.get('epochs', 100)
         
+        # 存储数据加载器供其他方法使用
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        
         # 打印训练开始信息
         print("=" * 80)
         print(f"🚀 开始训练心脏功能预测模型")
@@ -468,6 +595,9 @@ class CardiacTrainer:
         print("=" * 80)
         
         self.logger.info(f'开始训练，共 {epochs} 个epoch')
+        
+        # 打印标签分布统计
+        self._print_label_distribution()
         
         # 训练开始时间
         training_start_time = time.time()
@@ -589,17 +719,20 @@ def load_and_validate_csv_data(config):
     
     # 检查心脏功能指标列
     cardiac_metric_columns = config.get('cardiac_metric_columns', [])
-    if cardiac_metric_columns:
-        missing_cardiac_columns = [col for col in cardiac_metric_columns if col not in df.columns]
-        if missing_cardiac_columns:
-            print(f"警告: CSV文件中缺少心脏功能指标列: {missing_cardiac_columns}")
-            cardiac_metric_columns = [col for col in cardiac_metric_columns if col in df.columns]
-        if cardiac_metric_columns:
-            print(f"找到心脏功能指标列: {cardiac_metric_columns}")
-        else:
-            print("注意: 未找到任何心脏功能指标数据，将使用模拟标签进行训练演示")
-    else:
-        print("注意: 配置中未指定心脏功能指标列，将使用模拟标签进行训练演示")
+    if not cardiac_metric_columns:
+        raise ValueError("配置中必须指定cardiac_metric_columns，不能使用模拟数据进行训练。"
+                        "请在配置文件中设置cardiac_metric_columns，例如: ['lvef', 'as_maybe']")
+    
+    missing_cardiac_columns = [col for col in cardiac_metric_columns if col not in df.columns]
+    if missing_cardiac_columns:
+        raise ValueError(f"CSV文件中缺少必需的心脏功能指标列: {missing_cardiac_columns}。"
+                        f"可用的列: {list(df.columns)}")
+    
+    print(f"找到心脏功能指标列: {cardiac_metric_columns}")
+    
+    # 检查是否至少需要2个心脏功能指标（LVEF和AS）
+    if len(cardiac_metric_columns) < 2:
+        raise ValueError(f"至少需要2个心脏功能指标列（LVEF和AS），但只提供了 {len(cardiac_metric_columns)} 个: {cardiac_metric_columns}")
     
     # 数据清理
     if config.get('remove_missing_files', True):
@@ -646,21 +779,25 @@ def build_data_list(df, config, cardiac_metric_columns):
         
         # 获取心脏功能指标数据
         cardiac_metrics = None
-        if cardiac_metric_columns:
-            try:
-                cardiac_metrics = []
-                for col in cardiac_metric_columns:
-                    value = row[col]
-                    if pd.isna(value):
-                        cardiac_metrics = None
-                        break
-                    cardiac_metrics.append(float(value))
-                
-                if cardiac_metrics is not None:
-                    cardiac_metrics = np.array(cardiac_metrics, dtype=np.float32)
-            except (ValueError, TypeError) as e:
-                print(f"警告: 行 {idx} 的心脏功能指标数据无效: {e}")
-                cardiac_metrics = None
+        try:
+            cardiac_metrics = []
+            for col in cardiac_metric_columns:
+                value = row[col]
+                if pd.isna(value):
+                    print(f"警告: 行 {idx} (basename: {basename}) 的列 '{col}' 缺少数据，跳过该样本")
+                    cardiac_metrics = None
+                    break
+                cardiac_metrics.append(float(value))
+            
+            if cardiac_metrics is not None:
+                cardiac_metrics = np.array(cardiac_metrics, dtype=np.float32)
+        except (ValueError, TypeError) as e:
+            print(f"警告: 行 {idx} (basename: {basename}) 的心脏功能指标数据无效: {e}，跳过该样本")
+            cardiac_metrics = None
+        
+        # 如果没有有效的心脏功能指标数据，跳过这个样本
+        if cardiac_metrics is None:
+            continue
         
         # 收集其他元数据
         metadata = {}
@@ -803,5 +940,3 @@ def create_data_loaders(config):
     
     return train_loader, val_loader
 
-
- 

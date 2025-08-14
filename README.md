@@ -1,65 +1,148 @@
-# Merlin: Vision Language Foundation Model for 3D Computed Tomography
+# 心脏功能预测 - 混合数据加载器训练系统
 
-[![arXiv](https://img.shields.io/badge/arXiv-2406.06512-b31b1b.svg?style=for-the-badge)](https://arxiv.org/abs/2406.06512)    [![Hugging Face](https://huggingface.co/datasets/huggingface/badges/resolve/main/model-on-hf-md.svg)](https://huggingface.co/stanfordmimi/Merlin)    [![pypi](https://img.shields.io/pypi/v/merlin-vlm?style=for-the-badge)](https://pypi.org/project/merlin-vlm/)    [![Watch the Talk on YouTube](https://img.shields.io/badge/YouTube-Talk-red?style=for-the-badge&logo=youtube)](https://youtu.be/XWmCkbpXOUw?si=6GggZgj9U4kbLAKx)    ![License](https://img.shields.io/github/license/stanfordmimi/merlin?style=for-the-badge)
+基于胸部CT影像和超声心动图数据的心脏功能预测模型训练系统。
 
-*Merlin is a 3D VLM for computed tomography that leverages both structured electronic health records (EHR) and unstructured radiology reports for pretraining.*
+## 🎯 核心功能
 
-![Key Graphic](documentation/assets/overview.png)
+- **混合数据加载**: 从CSV文件读取标签，从HDF5文件读取预处理的图像数据
+- **心脏功能预测**: 同时进行LVEF回归和主动脉狭窄(AS)分类
+- **高效训练**: 利用预处理的HDF5数据实现快速训练
 
-## ⚡️ Installation
+## 🚀 快速开始
 
-To install Merlin, you can simply run:
+### 1. 环境准备
 
-```python
-pip install merlin-vlm
+```bash
+# 安装依赖
+pip install -r requirements.txt
 ```
 
-For an editable installation, use the following commands to clone and install this repository.
+### 2. 数据准备
 
-```python
-conda create -name merlin
-conda activate merlin
+确保以下文件存在：
+- **标签文件**: `merged_ct_echo_data.csv` - 包含basename, folder, lvef, AS_maybe列
+- **图像文件**: HDF5格式的预处理图像数据
+- **配置文件**: `configs/hybrid_cardiac_training_config.json`
 
-git clone https://github.com/StanfordMIMI/Merlin.git
-cd merlin
-pip install -e .
+### 3. 开始训练
 
-# Alternatively, to install exact package versions as tested:
-# uv sync
+```bash
+python examples/cardiac_training_example.py --config configs/hybrid_cardiac_training_config.json
 ```
 
-## 🚀 Inference with Merlin
+## 📊 数据格式
 
-To create a Merlin model with both image and text embeddings enabled, use the following:
-
-```python
-from merlin import Merlin
-
-model = Merlin()
+### CSV标签文件格式
+```csv
+basename,folder,lvef,AS_maybe,patient_id
+LA3dd33e5-LA3dd5b65,1A,61.47,0.0,patient_001
+LA3dd74cb-LA3dd962e,1A,55.23,1.0,patient_002
 ```
 
-To initialize the model with **only image embeddings** active, use:
+### HDF5图像文件格式
+- 路径: `/path/to/preprocessed_data.h5`
+- 结构: `images/` 组包含哈希键名的图像数据
+- 元数据: `data_metadata.json` 提供哈希到basename/folder的映射
 
-```python
-from merlin import Merlin
+## ⚙️ 配置说明
 
-model = Merlin(ImageEmbedding=True)
-```
+关键配置参数 (`configs/hybrid_cardiac_training_config.json`):
 
-#### For inference on a demo CT scan, please check out the [demo](documentation/demo.py)
-
-#### For additional information, please read the [documentation](documentation/inference.md).
-
-## 📎 Citation
-
-If you find this repository useful for your work, please cite the cite the [original paper](https://arxiv.org/abs/2406.06512):
-
-```bibtex
-@article{blankemeier2024merlin,
-  title={Merlin: A vision language foundation model for 3d computed tomography},
-  author={Blankemeier, Louis and Cohen, Joseph Paul and Kumar, Ashwin and Van Veen, Dave and Gardezi, Syed Jamal Safdar and Paschali, Magdalini and Chen, Zhihong and Delbrouck, Jean-Benoit and Reis, Eduardo and Truyts, Cesar and others},
-  journal={Research Square},
-  pages={rs--3},
-  year={2024}
+```json
+{
+  "use_hybrid_loader": true,
+  "csv_path": "/path/to/merged_ct_echo_data.csv",
+  "hdf5_path": "/path/to/preprocessed_data.h5",
+  "label_columns": ["lvef", "AS_maybe"],
+  "epochs": 50,
+  "batch_size": 24,
+  "learning_rate": 5e-05
 }
 ```
+
+## 📁 项目结构
+
+```
+├── configs/
+│   ├── hybrid_cardiac_training_config.json  # 训练配置
+│   └── README_hybrid_training.md            # 详细使用说明
+├── examples/
+│   └── cardiac_training_example.py          # 主训练脚本
+├── merlin/
+│   ├── training/
+│   │   ├── fast_dataloader.py              # 混合数据加载器
+│   │   └── cardiac_trainer.py              # 训练器
+│   ├── models/                             # 模型定义
+│   └── data/                               # 数据处理工具
+├── scripts/
+│   └── merge_csv_data.py                   # CSV数据合并工具
+├── merged_ct_echo_data.csv                 # 合并的标签数据
+└── requirements.txt                        # 依赖包
+```
+
+## 🔧 核心组件
+
+### HybridCardiacDataset
+混合数据加载器，支持：
+- 从CSV读取标签数据
+- 从HDF5读取图像数据
+- 智能哈希映射匹配
+- 内存缓存优化
+
+### CardiacTrainer
+训练器，支持：
+- 多任务学习 (回归+分类)
+- 类别权重平衡
+- TensorBoard可视化
+- 自动模型保存
+
+## 📈 训练监控
+
+### TensorBoard
+```bash
+tensorboard --logdir outputs/hybrid_cardiac_training/tensorboard
+```
+
+### 训练日志
+- 位置: `outputs/hybrid_cardiac_training/training.log`
+- 包含: 损失曲线、指标统计、模型保存信息
+
+## 🎯 模型输出
+
+- **LVEF回归**: 预测左心室射血分数 (5-90%)
+- **AS分类**: 预测主动脉狭窄风险 (0: 正常, 1: 可能AS)
+
+## 📋 系统要求
+
+- Python 3.8+
+- PyTorch 1.9+
+- CUDA 11.0+ (GPU训练)
+- 16GB+ RAM (推荐)
+
+## 🔍 故障排除
+
+### 常见问题
+
+1. **数据匹配失败**
+   - 检查CSV中的basename/folder列
+   - 验证HDF5文件路径和元数据文件
+
+2. **内存不足**
+   - 减少batch_size
+   - 调整cache_size
+   - 设置preload_data为false
+
+3. **训练速度慢**
+   - 增加num_workers
+   - 启用GPU训练
+   - 调整缓存设置
+
+详细说明请参考: `configs/README_hybrid_training.md`
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request来改进项目！

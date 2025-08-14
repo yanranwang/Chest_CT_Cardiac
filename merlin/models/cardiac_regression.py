@@ -35,8 +35,8 @@ class CardiacImageEncoder(nn.Module):
             for key, value in state_dict.items():
                 # 查找encode_image.i3_resnet开头的权重键
                 if key.startswith('encode_image.i3_resnet.'):
-                    # 移除encode_image.前缀，保留i3_resnet.部分
-                    new_key = key.replace('encode_image.', '')
+                    # 移除encode_image.i3_resnet.前缀，只保留实际的层名
+                    new_key = key.replace('encode_image.i3_resnet.', '')
                     image_encoder_dict[new_key] = value
                     print(f"映射权重: {key} -> {new_key}")
             

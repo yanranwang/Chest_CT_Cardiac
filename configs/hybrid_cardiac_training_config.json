@@ -1,0 +1,75 @@
+{
+  "output_dir": "outputs/hybrid_cardiac_training",
+  "pretrained_model_path": "./merlin/models/checkpoints/i3_resnet_clinical_longformer_best_clip_04-02-2024_23-21-36_epoch_99.pt",
+  "num_cardiac_metrics": 2,
+  "epochs": 50,
+  "batch_size": 24,
+  "learning_rate": 5e-05,
+  "weight_decay": 1e-05,
+  "optimizer": "adamw",
+  "loss_function": "mse",
+  "regression_weight": 0.0,
+  "classification_weight": 1.0,
+  "use_class_weights": true,
+  "scheduler": {
+    "type": "cosine",
+    "eta_min": 1e-06
+  },
+  "freeze_encoder": false,
+  "grad_clip": 1.0,
+  "device": "cuda",
+  "seed": 42,
+  "num_workers": 8,
+  "log_interval": 10,
+  "save_interval": 10,
+  "use_tensorboard": true,
+  "drop_last": true,
+  "progress_bar": true,
+  "show_gpu_memory": true,
+  "show_eta": true,
+  "detailed_metrics": true,
+  "train_val_split": 0.8,
+  "split_method": "random",
+  
+  "_comment_data_source": "=== 数据源配置 ===",
+  "csv_path": "/pasteur2/u/xhanwang/Chest_CT_Cardiac/merged_ct_echo_data.csv",
+  "hdf5_path": "/pasteur2/u/xhanwang/Chest_CT_Cardiac/outputs/cardiac_training_as_maybe/preprocessed_data.h5",
+  "label_columns": ["lvef", "AS_maybe"],
+  
+  "_comment_loader_config": "=== 数据加载器配置 ===",
+  "use_fast_loader": false,
+  "use_hybrid_loader": true,
+  
+  "_comment_csv_config": "=== CSV数据配置 ===",
+  "required_columns": [
+    "basename",
+    "folder"
+  ],
+  "cardiac_metric_columns": [
+    "lvef",
+    "AS_maybe"
+  ],
+  "metadata_columns": [
+    "patient_id"
+  ],
+  
+  "_comment_image_config": "=== 图像路径配置 (用于标准加载器) ===",
+  "base_path": "/dataNAS/data/ct_data/ct_scans",
+  "image_path_template": "{base_path}/stanford_{folder}/{basename}.nii.gz",
+  "check_file_exists": false,
+  "remove_missing_files": true,
+  "remove_duplicates": true,
+  
+  "_comment_cache_config": "=== 缓存配置 ===",
+  "cache_config": {
+    "enable_cache": true,
+    "cache_size": 200,
+    "preload_train_data": false,
+    "preload_val_data": false
+  },
+  
+  "_comment_notes": "=== 使用说明 ===",
+  "_note_1": "此配置使用混合数据加载器：从CSV读取标签，从HDF5读取图像",
+  "_note_2": "确保HDF5文件路径正确，且包含预处理的图像数据",
+  "_note_3": "CSV文件应包含basename, folder列以及标签列(lvef, AS_maybe)"
+} 
