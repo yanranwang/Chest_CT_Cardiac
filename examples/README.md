@@ -1,25 +1,25 @@
-# Examples 示例代码
+# Examples
 
-这个目录包含心脏功能预测训练的示例代码和文档。
+This directory contains example code and documentation for cardiac function prediction training.
 
-## 🎯 主要文件
+## 🎯 Main Files
 
 ### cardiac_training_example.py
-**核心训练脚本** - 支持混合数据加载器的心脏功能预测训练
+**Core training script** - Cardiac function prediction training with hybrid data loader support
 
-**功能特性**:
-- 支持混合数据加载 (CSV标签 + HDF5图像)
-- 支持标准数据加载 (CSV + 原始图像)
-- 多任务学习 (LVEF回归 + AS分类)
-- TensorBoard可视化
-- 自动模型保存和恢复
+**Features**:
+- Supports hybrid data loading (CSV labels + HDF5 images)
+- Supports standard data loading (CSV + raw images)
+- Multi-task learning (LVEF regression + AS classification)
+- TensorBoard visualization
+- Automatic model saving and restoration
 
-**使用方法**:
+**Usage**:
 ```bash
-# 使用混合数据加载器训练
+# Train using hybrid data loader
 python examples/cardiac_training_example.py --config configs/hybrid_cardiac_training_config.json
 
-# 使用命令行参数
+# Use command line arguments
 python examples/cardiac_training_example.py \
     --config configs/hybrid_cardiac_training_config.json \
     --epochs 100 \
@@ -27,66 +27,66 @@ python examples/cardiac_training_example.py \
     --learning_rate 1e-4
 ```
 
-**命令行参数**:
-- `--config`: 配置文件路径
-- `--output_dir`: 输出目录
-- `--csv_path`: CSV数据文件路径
-- `--epochs`: 训练轮数
-- `--batch_size`: 批量大小
-- `--learning_rate`: 学习率
-- `--device`: 训练设备 (cuda/cpu/auto)
-- `--use_fast_loader`: 启用快速数据加载器
-- `--use_hybrid_loader`: 启用混合数据加载器
+**Command Line Arguments**:
+- `--config`: Configuration file path
+- `--output_dir`: Output directory
+- `--csv_path`: CSV data file path
+- `--epochs`: Number of training epochs
+- `--batch_size`: Batch size
+- `--learning_rate`: Learning rate
+- `--device`: Training device (cuda/cpu/auto)
+- `--use_fast_loader`: Enable fast data loader
+- `--use_hybrid_loader`: Enable hybrid data loader
 
-## 📚 文档
+## 📚 Documentation
 
 ### QUICK_START.md
-快速开始指南，包含：
-- 环境配置
-- 数据准备
-- 训练启动
-- 结果查看
+Quick start guide containing:
+- Environment configuration
+- Data preparation
+- Training launch
+- Results viewing
 
 ### README_CARDIAC_TRAINING.md
-详细的训练文档，包含：
-- 完整的配置说明
-- 数据格式要求
-- 高级训练选项
-- 故障排除指南
+Detailed training documentation containing:
+- Complete configuration instructions
+- Data format requirements
+- Advanced training options
+- Troubleshooting guide
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-1. **安装依赖**:
+1. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **准备数据**:
-   - 确保有 `merged_ct_echo_data.csv` 标签文件
-   - 确保有对应的 HDF5 图像文件
+2. **Prepare Data**:
+   - Ensure you have `merged_ct_echo_data.csv` label file
+   - Ensure you have corresponding HDF5 image files
 
-3. **开始训练**:
+3. **Start Training**:
    ```bash
    python examples/cardiac_training_example.py --config configs/hybrid_cardiac_training_config.json
    ```
 
-4. **监控训练**:
+4. **Monitor Training**:
    ```bash
    tensorboard --logdir outputs/hybrid_cardiac_training/tensorboard
    ```
 
-## 📊 输出文件
+## 📊 Output Files
 
-训练完成后，在输出目录中会生成：
-- `best_model.pth`: 最佳模型权重
-- `training.log`: 详细训练日志
-- `config.json`: 使用的配置
-- `tensorboard/`: TensorBoard日志文件
+After training completion, the following files will be generated in the output directory:
+- `best_model.pth`: Best model weights
+- `training.log`: Detailed training logs
+- `config.json`: Configuration used
+- `tensorboard/`: TensorBoard log files
 
-## 🔧 自定义训练
+## 🔧 Custom Training
 
-### 修改配置文件
-编辑 `configs/hybrid_cardiac_training_config.json`:
+### Modify Configuration File
+Edit `configs/hybrid_cardiac_training_config.json`:
 
 ```json
 {
@@ -98,7 +98,7 @@ python examples/cardiac_training_example.py \
 }
 ```
 
-### 使用命令行覆盖
+### Use Command Line Override
 ```bash
 python examples/cardiac_training_example.py \
     --config configs/hybrid_cardiac_training_config.json \
@@ -106,9 +106,9 @@ python examples/cardiac_training_example.py \
     --batch_size 32
 ```
 
-## 📋 注意事项
+## 📋 Notes
 
-- 确保GPU内存足够（推荐16GB+）
-- 首次运行会自动下载预训练权重
-- 训练过程中会自动保存检查点
-- 使用 `Ctrl+C` 可以安全停止训练 
+- Ensure sufficient GPU memory (16GB+ recommended)
+- First run will automatically download pretrained weights
+- Checkpoints are automatically saved during training
+- Use `Ctrl+C` to safely stop training 

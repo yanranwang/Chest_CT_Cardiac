@@ -14,7 +14,7 @@ class CardiacInference:
     
     def __init__(self, model_path: str, device: str = 'auto'):
         """
-        初始化心脏功能推理器
+        Initialize心脏功能推理器
         
         Args:
             model_path: 训练好的模型权重路径
@@ -25,36 +25,36 @@ class CardiacInference:
         self.transform = ImageTransforms
         self.metric_names = CardiacMetricsCalculator.get_metric_names()
         
-        # 设置日志
+        # Setlog
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         
-        self.logger.info(f"心脏功能推理器初始化完成，使用设备: {self.device}")
+        self.logger.info(f"心脏功能推理器Initialize完成，使用设备: {self.device}")
     
     def _setup_device(self, device: str) -> torch.device:
-        """设置计算设备"""
+        """设置Calculate设备"""
         if device == 'auto':
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         return torch.device(device)
     
     def _load_model(self, model_path: str) -> CardiacFunctionModel:
-        """加载训练好的模型"""
+        """Load训练好的模型"""
         if not os.path.exists(model_path):
-            raise FileNotFoundError(f"模型文件不存在: {model_path}")
+            raise FileNotFoundError(f"模型file does not exist: {model_path}")
         
-        # 创建模型实例
+        # Createmodelinstance
         model = CardiacFunctionModel()
         
-        # 加载权重
+        # Loadweights
         checkpoint = torch.load(model_path, map_location=self.device)
         
-        # 处理DataParallel包装的模型
+        # ProcessDataParallel包装的model
         if 'model_state_dict' in checkpoint:
             state_dict = checkpoint['model_state_dict']
         else:
             state_dict = checkpoint
         
-        # 移除DataParallel前缀
+        # RemoveDataParallel前缀
         if any(key.startswith('module.') for key in state_dict.keys()):
             state_dict = {key.replace('module.', ''): value for key, value in state_dict.items()}
         
@@ -62,29 +62,29 @@ class CardiacInference:
         model = model.to(self.device)
         model.eval()
         
-        self.logger.info(f"成功加载模型: {model_path}")
+        self.logger.info(f"成功Load模型: {model_path}")
         return model
     
     def preprocess_image(self, image_path: str) -> torch.Tensor:
         """
-        预处理CT图像
+        预ProcessCT图像
         
         Args:
             image_path: CT图像文件路径
             
         Returns:
-            preprocessed_image: 预处理后的图像张量
+            preprocessed_image: 预Process后的图像张量
         """
         if not os.path.exists(image_path):
-            raise FileNotFoundError(f"图像文件不存在: {image_path}")
+            raise FileNotFoundError(f"图像file does not exist: {image_path}")
         
-        # 构建数据字典
+        # Builddata字典
         data = {'image': image_path}
         
-        # 应用预处理变换
+        # TODO: Translate '应用预'Processtransform
         data = self.transform(data)
         
-        # 添加batch维度并移动到设备
+        # Addbatchdimension并移动to设备
         image = data['image'].unsqueeze(0).to(self.device)
         
         return image
@@ -95,26 +95,26 @@ class CardiacInference:
         
         Args:
             image_path: CT图像文件路径
-            normalize: 是否将预测值标准化到生理范围
+            normalize: 是否将预测值标准化到生理Range
             
         Returns:
             predictions: 心脏功能预测结果字典
         """
-        # 预处理图像
+        # TODO: Translate '预'Processimage
         image = self.preprocess_image(image_path)
         
-        # 模型推理
+        # model推理
         with torch.no_grad():
             cardiac_predictions = self.model.predict_cardiac_function(image)
         
-        # 标准化预测值
+        # standard化Predictvalue
         if normalize:
             cardiac_predictions = CardiacMetricsCalculator.normalize_predictions(cardiac_predictions)
         
-        # 转换为numpy并移回CPU
+        # Convert为numpy并移回CPU
         cardiac_predictions = cardiac_predictions.cpu().numpy().flatten()
         
-        # 构建结果字典
+        # Buildresults字典
         results = {}
         for i, metric_name in enumerate(self.metric_names):
             results[metric_name] = float(cardiac_predictions[i])
@@ -127,7 +127,7 @@ class CardiacInference:
         
         Args:
             image_paths: CT图像文件路径列表
-            normalize: 是否将预测值标准化到生理范围
+            normalize: 是否将预测值标准化到生理Range
             
         Returns:
             predictions_list: 心脏功能预测结果列表
@@ -157,33 +157,32 @@ class CardiacInference:
     
     def predict_with_confidence(self, image_path: str, num_samples: int = 10) -> Dict[str, Dict[str, float]]:
         """
-        使用蒙特卡洛dropout预测心脏功能，提供不确定性估计
+        使用蒙特卡洛dropout预测心脏功能，提供不Determine性估计
         
         Args:
             image_path: CT图像文件路径
             num_samples: 蒙特卡洛采样次数
             
         Returns:
-            predictions_with_uncertainty: 包含均值、标准差的预测结果
+            predictions_with_uncertainty: 包含均值、Standard deviation的预测结果
         """
-        # 启用dropout进行不确定性估计
+        # enabledropout进行notDetermine性估计
         self.model.train()
         
-        # 预处理图像
+        # TODO: Translate '预'Processimage
         image = self.preprocess_image(image_path)
         
-        # 多次采样
-        all_predictions = []
+        # TODO: Translate '多次采样'all_predictions = []
         with torch.no_grad():
             for _ in range(num_samples):
                 cardiac_predictions = self.model.predict_cardiac_function(image)
                 cardiac_predictions = CardiacMetricsCalculator.normalize_predictions(cardiac_predictions)
                 all_predictions.append(cardiac_predictions.cpu().numpy().flatten())
         
-        # 恢复eval模式
+        # restoreevalmode
         self.model.eval()
         
-        # 计算统计量
+        # Calculatestatistics量
         all_predictions = np.array(all_predictions)  # [num_samples, num_metrics]
         
         results = {}
@@ -223,7 +222,7 @@ class CardiacInference:
         report_lines.append(f"预测时间: {torch.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report_lines.append("")
         
-        # 心脏功能指标
+        # cardiac function指标
         report_lines.append("心脏功能指标:")
         report_lines.append("-" * 40)
         
@@ -254,7 +253,7 @@ class CardiacInference:
     
     def save_predictions(self, predictions: Union[Dict, List[Dict]], output_path: str):
         """
-        保存预测结果到文件
+        Save预测结果到文件
         
         Args:
             predictions: 预测结果
@@ -265,7 +264,7 @@ class CardiacInference:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # 添加元数据
+        # Add元data
         if isinstance(predictions, dict):
             output_data = {
                 'metadata': {
@@ -289,36 +288,36 @@ class CardiacInference:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
         
-        self.logger.info(f"预测结果已保存到: {output_path}")
+        self.logger.info(f"预测结果已Save到: {output_path}")
 
 
 def main():
     """演示心脏功能推理"""
-    # 配置参数
-    model_path = "outputs/cardiac_training/best_model.pth"  # 训练好的模型路径
-    image_path = "path/to/ct_scan.nii.gz"  # CT图像路径
+    # configparameters
+    model_path = "outputs/cardiac_training/best_model.pth"  # Train好的modelpath
+    image_path = "path/to/ct_scan.nii.gz"  # CTimagepath
     
     try:
-        # 创建推理器
+        # Create推理器
         predictor = CardiacInference(model_path)
         
-        # 单个预测
+        # singlePredict
         predictions = predictor.predict_single(image_path)
         print("心脏功能预测结果:")
         for metric, value in predictions.items():
             print(f"  {metric}: {value:.2f}")
         
-        # 生成报告
+        # Generatereport
         report = predictor.generate_report(predictions, patient_id="PATIENT_001")
         print("\n" + report)
         
-        # 不确定性估计
+        # notDetermine性估计
         predictions_with_uncertainty = predictor.predict_with_confidence(image_path)
-        print("\n不确定性估计:")
+        print("\n不Determine性估计:")
         for metric, stats in predictions_with_uncertainty.items():
             print(f"  {metric}: {stats['mean']:.2f} ± {stats['std']:.2f}")
         
-        # 保存结果
+        # Saveresults
         predictor.save_predictions(predictions, "outputs/predictions.json")
         
     except Exception as e:

@@ -19,29 +19,29 @@ class CardiacImageEncoder(nn.Module):
             copy.deepcopy(resnet), class_nb=1692, conv_class=True, ImageEmbedding=False
         )
         
-        # 如果提供了预训练权重路径，加载权重
+        # if提供了预Trainweightspath，Loadweights
         if pretrained_path:
             self._load_pretrained_weights(pretrained_path)
     
     def _load_pretrained_weights(self, path):
-        """加载预训练的Merlin权重"""
+        """Load预训练的Merlin权重"""
         try:
             state_dict = torch.load(path, map_location='cpu')
             
-            # 只加载图像编码器相关的权重
+            # TODO: Translate '只'Loadimageencode器相关的weights
             image_encoder_dict = {}
             
-            # 遍历所有权重键
+            # TODO: Translate '遍历所'hasweightskey
             for key, value in state_dict.items():
-                # 查找encode_image.i3_resnet开头的权重键
+                # findencode_image.i3_resnet开头的weightskey
                 if key.startswith('encode_image.i3_resnet.'):
-                    # 移除encode_image.i3_resnet.前缀，只保留实际的层名
+                    # Removeencode_image.i3_resnet.前缀，只保留实际的层名
                     new_key = key.replace('encode_image.i3_resnet.', '')
                     image_encoder_dict[new_key] = value
                     print(f"映射权重: {key} -> {new_key}")
             
             if image_encoder_dict:
-                # 尝试加载权重到i3_resnet
+                # TODO: Translate '尝试'Loadweightstoi3_resnet
                 missing_keys, unexpected_keys = self.i3_resnet.load_state_dict(image_encoder_dict, strict=False)
                 
                 if missing_keys:
@@ -49,18 +49,18 @@ class CardiacImageEncoder(nn.Module):
                 if unexpected_keys:
                     print(f"意外的权重键: {unexpected_keys}")
                     
-                print(f"成功加载预训练的图像编码器权重，共 {len(image_encoder_dict)} 个参数")
+                print(f"成功Load预训练的图像编码器权重，共 {len(image_encoder_dict)} 个参数")
             else:
                 print("警告: 在预训练权重中未找到图像编码器相关的权重")
                 print("可用的权重键:")
-                for key in list(state_dict.keys())[:10]:  # 显示前10个键
+                for key in list(state_dict.keys())[:10]:  # show前10个key
                     print(f"  {key}")
                 if len(state_dict.keys()) > 10:
                     print(f"  ... 还有 {len(state_dict.keys()) - 10} 个键")
                 
         except Exception as e:
-            print(f"加载预训练权重失败: {e}")
-            print("将使用随机初始化的权重继续训练")
+            print(f"Load预训练权重失败: {e}")
+            print("将使用随机Initialize的权重继续训练")
     
     def forward(self, image):
         contrastive_features, ehr_features = self.i3_resnet(image)
@@ -72,7 +72,7 @@ class CardiacPredictionHead(nn.Module):
     def __init__(self, input_dim=512, hidden_dims=[256, 128]):
         super().__init__()
         
-        # 共享特征提取层
+        # TODO: Translate '共享'featuresExtract层
         shared_layers = []
         prev_dim = input_dim
         
@@ -81,33 +81,33 @@ class CardiacPredictionHead(nn.Module):
                 nn.Linear(prev_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Dropout(0.3),
-                nn.LayerNorm(hidden_dim)  # 使用LayerNorm替代BatchNorm，不依赖于batch_size
+                nn.LayerNorm(hidden_dim)  # TODO: Translate '使用'LayerNorm替代BatchNorm，not依赖于batch_size
             ])
             prev_dim = hidden_dim
         
         self.shared_features = nn.Sequential(*shared_layers)
         
-        # LVEF回归头
+        # LVEFregression头
         self.lvef_regressor = nn.Sequential(
             nn.Linear(prev_dim, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, 1)  # LVEF输出 (射血分数百分比)
+            nn.Linear(64, 1)  # LVEFOutput (射血分数百分比)
         )
         
-        # AS二分类头 
+        # AS二classification头
         self.as_classifier = nn.Sequential(
             nn.Linear(prev_dim, 64),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, 1)  # AS存在性输出 (不在这里加sigmoid，在forward中处理)
+            nn.Linear(64, 1)  # AS存in性Output (notin这里加sigmoid，inforward中Process)
         )
         
-        # 初始化权重
+        # Initializeweights
         self._init_weights()
     
     def _init_weights(self):
-        """初始化网络权重"""
+        """Initialize网络权重"""
         for module in self.modules():
             if isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
@@ -125,16 +125,16 @@ class CardiacPredictionHead(nn.Module):
         if len(features.shape) == 1:
             features = features.unsqueeze(0)
         
-        # 标准化特征
+        # standard化features
         features = features / (features.norm(dim=-1, keepdim=True) + 1e-8)
         
-        # 共享特征提取
+        # TODO: Translate '共享'featuresExtract
         shared_feat = self.shared_features(features)
         
-        # LVEF回归预测
+        # LVEFregressionPredict
         lvef_pred = self.lvef_regressor(shared_feat)
         
-        # AS分类预测 - 使用稳定的sigmoid激活
+        # ASclassificationPredict - 使用stable的sigmoid激活
         as_logits = self.as_classifier(shared_feat)
         as_pred = torch.sigmoid(torch.clamp(as_logits, min=-10, max=10))
         
@@ -146,13 +146,13 @@ class CardiacFunctionModel(nn.Module):
     def __init__(self, pretrained_model_path=None):
         super().__init__()
         
-        # 图像编码器
+        # imageencode器
         self.image_encoder = CardiacImageEncoder(pretrained_model_path)
         
-        # 心脏功能预测头
+        # cardiac functionPredict头
         self.cardiac_predictor = CardiacPredictionHead(input_dim=512)
         
-        # 是否冻结图像编码器
+        # is否冻结imageencode器
         self.freeze_image_encoder = False
     
     def freeze_encoder(self, freeze=True):
@@ -165,17 +165,17 @@ class CardiacFunctionModel(nn.Module):
         """前向传播
         Args:
             image: CT图像 [batch_size, channels, depth, height, width]
-            return_features: 是否返回中间特征
+            return_features: 是否Return中间特征
         
         Returns:
             lvef_pred: LVEF预测值 [batch_size, 1]
             as_pred: AS存在性概率 [batch_size, 1]  
             image_features: 图像特征 [batch_size, 512] (可选)
         """
-        # 提取图像特征
+        # Extractimagefeatures
         image_features, _ = self.image_encoder(image)
         
-        # 心脏功能预测
+        # cardiac function prediction
         lvef_pred, as_pred = self.cardiac_predictor(image_features)
         
         if return_features:
@@ -202,31 +202,31 @@ class CardiacDataset(Dataset):
         Args:
             csv_path: CSV文件路径
             image_dir: CT图像目录路径
-            split: 数据分割 ('train', 'val', 'test')
+            split: 数据Split ('train', 'val', 'test')
             test_size: 测试集比例
             random_state: 随机种子
         """
         self.csv_path = csv_path
         self.image_dir = image_dir
         
-        # 读取CSV数据
+        # ReadCSVdata
         self.df = pd.read_csv(csv_path)
         
-        # 过滤有效数据（同时有LVEF和AS_definite标签）
+        # Filterhas效data（同时hasLVEFandAS_definitelabels）
         valid_mask = self.df['lvef'].notna() & self.df['AS_definite'].notna()
         self.df = self.df[valid_mask].reset_index(drop=True)
         
-        print(f"有效样本数量: {len(self.df)}")
-        print(f"LVEF范围: {self.df['lvef'].min():.2f} - {self.df['lvef'].max():.2f}")
+        print(f"有效Sample数量: {len(self.df)}")
+        print(f"LVEFRange: {self.df['lvef'].min():.2f} - {self.df['lvef'].max():.2f}")
         print(f"AS分布: {self.df['AS_definite'].value_counts().to_dict()}")
         
-        # 数据分割
+        # dataSplit
         if split in ['train', 'val']:
             train_indices, val_indices = train_test_split(
                 range(len(self.df)), 
                 test_size=test_size, 
                 random_state=random_state,
-                stratify=self.df['AS_definite']  # 保持AS类别平衡
+                stratify=self.df['AS_definite']  # TODO: Translate '保持'ASclass别平衡
             )
             
             if split == 'train':
@@ -236,21 +236,21 @@ class CardiacDataset(Dataset):
         else:
             self.indices = list(range(len(self.df)))
         
-        print(f"{split}集样本数量: {len(self.indices)}")
+        print(f"{split}集Sample数量: {len(self.indices)}")
     
     def __len__(self):
         return len(self.indices)
     
     def __getitem__(self, idx):
-        """获取单个样本"""
+        """Get单samples"""
         real_idx = self.indices[idx]
         row = self.df.iloc[real_idx]
         
-        # 获取标签
+        # Getlabels
         lvef = float(row['lvef'])
         as_definite = int(row['AS_definite'])
         
-        # 获取图像标识符
+        # Getimage标识符
         mrn = row['mrn']
         accession_number = row['accession_number']
         
@@ -259,10 +259,10 @@ class CardiacDataset(Dataset):
             'accession_number': accession_number,
             'lvef': torch.tensor(lvef, dtype=torch.float32),
             'as_definite': torch.tensor(as_definite, dtype=torch.float32),
-            'lvef_normalized': torch.tensor((lvef - 59.22) / 11.85, dtype=torch.float32),  # 标准化LVEF
+            'lvef_normalized': torch.tensor((lvef - 59.22) / 11.85, dtype=torch.float32),  # standard化LVEF
         }
         
-        # 如果有图像目录，可以在这里加载CT图像
+        # ifhasimage目录，可以in这里LoadCTimage
         # if self.image_dir:
         #     image_path = os.path.join(self.image_dir, f"{mrn}_{accession_number}.nii.gz")
         #     image = self.load_ct_image(image_path)
@@ -271,7 +271,7 @@ class CardiacDataset(Dataset):
         return sample
     
     def get_class_weights(self):
-        """计算AS分类的类别权重，用于处理类别不平衡"""
+        """CalculateAS分类的Class权重，用于ProcessClass不平衡"""
         as_counts = self.df.iloc[self.indices]['AS_definite'].value_counts().sort_index()
         total = len(self.indices)
         weights = total / (2 * as_counts.values)
@@ -285,14 +285,14 @@ class CardiacLoss(nn.Module):
         self.regression_weight = regression_weight
         self.classification_weight = classification_weight
         
-        # 回归损失：均方误差
+        # regressionloss：均方误差
         self.regression_loss = nn.MSELoss()
         
-        # 分类损失：始终使用BCELoss，避免BCEWithLogitsLoss的冲突
-        # 因为AS分类器输出已经经过sigmoid激活
+        # classificationloss：始终使用BCELoss，避免BCEWithLogitsLoss的冲突
+        # TODO: Translate '因为'ASclassification器Output已经经过sigmoid激活
         self.classification_loss = nn.BCELoss()
         
-        # 存储类别权重以供手动应用
+        # TODO: Translate '存储'class别weights以供manual应用
         self.class_weights = class_weights
     
     def forward(self, lvef_pred, as_pred, lvef_true, as_true):
@@ -303,27 +303,27 @@ class CardiacLoss(nn.Module):
             lvef_true: LVEF真实值 [batch_size]
             as_true: AS真实标签 [batch_size]
         """
-        # LVEF回归损失
+        # LVEFregressionloss
         reg_loss = self.regression_loss(lvef_pred.squeeze(), lvef_true)
         
-        # AS分类损失 - 添加数值稳定性保护
+        # ASclassificationloss - Add数valuestable性保护
         as_pred_clamped = torch.clamp(as_pred.squeeze(), min=1e-7, max=1.0 - 1e-7)
         as_true_clamped = torch.clamp(as_true, min=0.0, max=1.0)
         
-        # 计算基础BCE损失
+        # Calculate基础BCEloss
         clf_loss = self.classification_loss(as_pred_clamped, as_true_clamped)
         
-        # 如果提供了类别权重，手动应用权重
+        # if提供了class别weights，manual应用weights
         if self.class_weights is not None:
-            # 计算正类和负类的权重
+            # Calculate正classand负class的weights
             pos_weight = self.class_weights[1] if len(self.class_weights) > 1 else 1.0
             neg_weight = self.class_weights[0] if len(self.class_weights) > 0 else 1.0
             
-            # 应用权重
+            # TODO: Translate '应用'weights
             weights = as_true_clamped * pos_weight + (1 - as_true_clamped) * neg_weight
             clf_loss = clf_loss * weights.mean()
         
-        # 组合损失
+        # combinationloss
         total_loss = (self.regression_weight * reg_loss + 
                      self.classification_weight * clf_loss)
         
@@ -335,17 +335,17 @@ class CardiacLoss(nn.Module):
 
 
 def create_cardiac_dataloaders(csv_path, batch_size=32, num_workers=4):
-    """创建训练和验证数据加载器"""
+    """Create训练和Validate数据Load器"""
     
-    # 创建数据集
+    # Createdata集
     train_dataset = CardiacDataset(csv_path, split='train')
     val_dataset = CardiacDataset(csv_path, split='val')
     
-    # 获取类别权重
+    # Getclass别weights
     class_weights = train_dataset.get_class_weights()
-    print(f"AS类别权重: {class_weights}")
+    print(f"ASClass权重: {class_weights}")
     
-    # 创建数据加载器
+    # CreatedataLoad器
     train_loader = DataLoader(
         train_dataset, 
         batch_size=batch_size,
@@ -366,27 +366,27 @@ def create_cardiac_dataloaders(csv_path, batch_size=32, num_workers=4):
 
 
 class CardiacMetricsCalculator:
-    """心脏功能指标计算和标准化工具"""
+    """心脏功能指标Calculate和标准化工具"""
     
     @staticmethod
     def get_metric_names():
-        """获取心脏功能指标名称列表"""
+        """Get心脏功能指标名称列表"""
         return [
-            'ejection_fraction',       # 射血分数
-            'stroke_volume',          # 每搏输出量
-            'cardiac_output',         # 心输出量
-            'heart_rate_variability', # 心率变异性
-            'left_ventricular_mass',  # 左心室质量
-            'wall_thickness',         # 室壁厚度
-            'chamber_volume',         # 心室容积
-            'contractility_index',    # 收缩性指数
-            'diastolic_function',     # 舒张功能
-            'valvular_function'       # 瓣膜功能
+            'ejection_fraction',       # TODO: Translate '射血分数
+            ''stroke_volume',          # TODO: Translate '每搏'Output量
+            'cardiac_output',         # TODO: Translate '心'Output量
+            'heart_rate_variability', # TODO: Translate '心率变异性
+            ''left_ventricular_mass',  # TODO: Translate '左心室'mass
+            'wall_thickness',         # TODO: Translate '室壁厚度
+            ''chamber_volume',         # TODO: Translate '心室容积
+            ''contractility_index',    # shrink性指数
+            'diastolic_function',     # TODO: Translate '舒张功能
+            ''valvular_function'       # TODO: Translate '瓣膜功能
         ]
     
-    @staticmethod
+    @'staticmethod
     def get_metric_descriptions():
-        """获取心脏功能指标的中文描述"""
+        """Get心脏功能指标的中文描述"""
         return {
             'ejection_fraction': '射血分数 (%)',
             'stroke_volume': '每搏输出量 (mL)',
@@ -402,7 +402,7 @@ class CardiacMetricsCalculator:
     
     @staticmethod
     def get_normal_ranges():
-        """获取心脏功能指标的正常范围"""
+        """Get心脏功能指标的正常Range"""
         return {
             'ejection_fraction': (50, 70),      # 50-70%
             'stroke_volume': (60, 100),         # 60-100 mL
@@ -419,7 +419,7 @@ class CardiacMetricsCalculator:
     @classmethod
     def normalize_predictions(cls, predictions):
         """
-        将模型预测值标准化到生理范围
+        将模型预测值标准化到生理Range
         
         Args:
             predictions: 模型原始预测值 [batch_size, num_metrics] 或 [num_metrics]
@@ -432,7 +432,7 @@ class CardiacMetricsCalculator:
         else:
             predictions = torch.tensor(predictions)
         
-        # 确保是2D张量
+        # TODO: Translate '确保'is2D张量
         original_shape = predictions.shape
         if len(predictions.shape) == 1:
             predictions = predictions.unsqueeze(0)
@@ -443,17 +443,17 @@ class CardiacMetricsCalculator:
         normal_ranges = cls.get_normal_ranges()
         metric_names = cls.get_metric_names()
         
-        # 对每个指标进行标准化
+        # TODO: Translate '对'each指标进行standard化
         for i, metric_name in enumerate(metric_names):
             if i < predictions.shape[1]:
                 min_val, max_val = normal_ranges[metric_name]
                 
-                # 使用tanh激活函数将原始预测值映射到[-1, 1]，然后缩放到正常范围
+                # TODO: Translate '使用'tanh激活function将原始Predictvaluemappingto[-1, 1]，thenscaleto正常range
                 normalized_val = torch.tanh(predictions[:, i])
-                # 映射到正常范围
+                # mappingto正常range
                 predictions[:, i] = min_val + (normalized_val + 1) * (max_val - min_val) / 2
         
-        # 恢复原始形状
+        # restore原始shape
         if squeeze_output:
             predictions = predictions.squeeze(0)
         
@@ -462,7 +462,7 @@ class CardiacMetricsCalculator:
     @classmethod
     def denormalize_predictions(cls, normalized_predictions):
         """
-        将标准化的预测值转换回模型输出范围
+        将标准化的预测值Convert回模型输出Range
         
         Args:
             normalized_predictions: 标准化的预测值
@@ -475,7 +475,7 @@ class CardiacMetricsCalculator:
         else:
             predictions = torch.tensor(normalized_predictions)
         
-        # 确保是2D张量
+        # TODO: Translate '确保'is2D张量
         if len(predictions.shape) == 1:
             predictions = predictions.unsqueeze(0)
             squeeze_output = True
@@ -485,17 +485,17 @@ class CardiacMetricsCalculator:
         normal_ranges = cls.get_normal_ranges()
         metric_names = cls.get_metric_names()
         
-        # 对每个指标进行反标准化
+        # TODO: Translate '对'each指标进行反standard化
         for i, metric_name in enumerate(metric_names):
             if i < predictions.shape[1]:
                 min_val, max_val = normal_ranges[metric_name]
                 
-                # 从正常范围映射回[-1, 1]
+                # from正常rangemapping回[-1, 1]
                 normalized_val = 2 * (predictions[:, i] - min_val) / (max_val - min_val) - 1
-                # 使用arctanh转换回原始范围
+                # TODO: Translate '使用'arctanhConvert回原始range
                 predictions[:, i] = torch.atanh(torch.clamp(normalized_val, -0.99, 0.99))
         
-        # 恢复原始形状
+        # restore原始shape
         if squeeze_output:
             predictions = predictions.squeeze(0)
         
@@ -508,7 +508,7 @@ class CardiacMetricsCalculator:
         
         Args:
             predictions: 标准化的预测值
-            return_status: 是否返回状态评估
+            return_status: 是否Return状态评估
             
         Returns:
             evaluation: 评估结果字典
@@ -517,7 +517,7 @@ class CardiacMetricsCalculator:
             predictions = predictions.cpu().numpy()
         
         if len(predictions.shape) == 2:
-            predictions = predictions[0]  # 取第一个样本
+            predictions = predictions[0]  # TODO: Translate '取'firstsample
         
         normal_ranges = cls.get_normal_ranges()
         metric_names = cls.get_metric_names()
@@ -551,9 +551,9 @@ class CardiacMetricsCalculator:
         return evaluation
 
 
-# 使用示例和测试代码
+# TODO: Translate '使用示例'andTest代码
 if __name__ == "__main__":
-    # 跳过数据加载测试（需要特定的CSV文件）
+    # skipdataLoadTest（需要特定的CSVfile）
     print("=== 测试CardiacMetricsCalculator ===")
     metric_names = CardiacMetricsCalculator.get_metric_names()
     print(f"心脏功能指标 ({len(metric_names)} 个):")
@@ -561,16 +561,15 @@ if __name__ == "__main__":
         print(f"  {i:2d}. {name}")
     
     print("\n=== 测试模型 ===")
-    # 创建模型
+    # Createmodel
     model = CardiacFunctionModel()
-    print(f"模型创建成功")
+    print(f"模型Create成功")
     
-    # 创建随机输入（模拟CT图像）
-    dummy_image = torch.randn(2, 1, 16, 224, 224)  # [batch, channels, depth, height, width] - CT图像是单通道的
+    # CreaterandomInput（模拟CTimage）
+    dummy_image = torch.randn(2, 1, 16, 224, 224)  # [batch, channels, depth, height, width] - CTimageis单通道的
     print(f"输入图像形状: {dummy_image.shape}")
     
-    # 前向传播
-    print("开始前向传播...")
+    # TODO: Translate '前向传播'print("开始前向传播...")
     lvef_pred, as_pred = model(dummy_image)
     print(f"LVEF预测形状: {lvef_pred.shape}")
     print(f"AS预测形状: {as_pred.shape}")
@@ -578,22 +577,22 @@ if __name__ == "__main__":
     print(f"AS预测概率: {as_pred.squeeze().detach().numpy()}")
     
     print("\n=== 测试损失函数 ===")
-    # 使用默认类别权重测试损失函数
+    # TODO: Translate '使用'defaultclass别weightsTestlossfunction
     criterion = CardiacLoss()
     
-    # 模拟真实标签
+    # TODO: Translate '模拟真实'labels
     lvef_true = torch.tensor([65.0, 45.0])
     as_true = torch.tensor([0.0, 1.0])
     
-    # 计算损失
+    # Calculateloss
     loss_dict = criterion(lvef_pred, as_pred, lvef_true, as_true)
     print(f"总损失: {loss_dict['total_loss']:.4f}")
     print(f"回归损失: {loss_dict['regression_loss']:.4f}")
     print(f"分类损失: {loss_dict['classification_loss']:.4f}")
     
     print("\n=== 测试预测标准化 ===")
-    # 创建虚拟的心脏功能预测
-    dummy_cardiac_preds = torch.randn(1, 10) * 2  # 随机预测值
+    # Create虚拟的cardiac functionPredict
+    dummy_cardiac_preds = torch.randn(1, 10) * 2  # randomPredictvalue
     normalized_preds = CardiacMetricsCalculator.normalize_predictions(dummy_cardiac_preds)
     
     print("标准化预测结果:")

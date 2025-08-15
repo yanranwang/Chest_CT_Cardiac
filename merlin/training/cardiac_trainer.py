@@ -23,7 +23,7 @@ from pathlib import Path
 from tqdm import tqdm
 import warnings
 
-# 抑制不必要的警告
+# TODO: Translate '抑制'not必要的warning
 warnings.filterwarnings('ignore', category=UserWarning)
 
 from merlin.models.cardiac_regression import CardiacFunctionModel, CardiacMetricsCalculator
@@ -32,7 +32,7 @@ from merlin.data.monai_transforms import ImageTransforms
 
 
 class CardiacDataset(Dataset):
-    """心脏功能数据集 - 支持从CSV文件读取数据"""
+    """心脏功能数据集 - 支持从CSV文件Read数据"""
     def __init__(self, data_list, transform=None, cardiac_metric_columns=None):
         self.data_list = data_list
         self.transform = transform or ImageTransforms
@@ -45,24 +45,24 @@ class CardiacDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data_list[idx]
         
-        # 加载和预处理图像
+        # Loadand预Processimage
         if self.transform:
             sample = self.transform(sample)
         
-        # 获取心脏功能标签
+        # Getcardiac functionlabels
         if 'cardiac_metrics' in sample and sample['cardiac_metrics'] is not None:
             cardiac_metrics = torch.tensor(sample['cardiac_metrics'], dtype=torch.float32)
         else:
-            # 如果没有真实标签，抛出错误而不是使用模拟数据
-            raise ValueError(f"样本 {idx} (patient_id: {sample.get('patient_id', 'unknown')}) 缺少心脏功能标签数据。"
-                           f"请确保CSV文件中包含有效的心脏功能指标列，或检查数据预处理过程。")
+            # if没has真实labels，抛出error而notis使用模拟data
+            raise ValueError(f"Sample {idx} (patient_id: {sample.get('patient_id', 'unknown')}) lacks cardiac function label data。"
+                           f"请确保CSV文件中包含有效的心脏功能指标列，或Check数据预Process过程。")
         
-        # 确保标签包含LVEF和AS两个值
+        # TODO: Translate '确保'labelsincludeLVEFandAS两个value
         if len(cardiac_metrics) < 2:
-            # 如果标签数量不足，抛出错误而不是使用模拟数据
-            raise ValueError(f"样本 {idx} (patient_id: {sample.get('patient_id', 'unknown')}) 的心脏功能标签数量不足。"
+            # iflabelscountnot足，抛出error而notis使用模拟data
+            raise ValueError(f"Sample {idx} (patient_id: {sample.get('patient_id', 'unknown')}) 的心脏功能标签数量不足。"
                            f"期望至少2个标签(LVEF和AS)，但只有 {len(cardiac_metrics)} 个。"
-                           f"请检查cardiac_metric_columns配置和CSV数据。")
+                           f"请Checkcardiac_metric_columns配置和CSV数据。")
         
         return {
             'image': sample['image'],
@@ -202,12 +202,12 @@ class CardiacTrainer:
         regression_weight = self.config.get('regression_weight', 1.0)
         classification_weight = self.config.get('classification_weight', 1.0)
         
-        # 计算类别权重（如果启用）
+        # Calculateclass别weights（ifenable）
         class_weights = None
         if self.config.get('use_class_weights', False):
             class_weights = self._calculate_class_weights()
             if class_weights is not None:
-                self.logger.info(f"使用类别权重: {class_weights.tolist()}")
+                self.logger.info(f"使用Class权重: {class_weights.tolist()}")
         
         criterion = CardiacLoss(
             regression_weight=regression_weight,
@@ -218,10 +218,10 @@ class CardiacTrainer:
         return criterion
     
     def _calculate_class_weights(self):
-        """计算AS分类的类别权重"""
+        """CalculateAS分类的Class权重"""
         try:
             if hasattr(self, 'train_loader') and self.train_loader is not None:
-                # 从训练数据加载器中统计标签分布
+                # fromTraindataLoad器中statisticslabels分布
                 as_labels = []
                 for batch in self.train_loader:
                     if 'as_maybe' in batch:
@@ -229,7 +229,7 @@ class CardiacTrainer:
                     elif 'AS_maybe' in batch:
                         as_labels.extend(batch['AS_maybe'].cpu().numpy())
                     elif 'labels' in batch and len(batch['labels'].shape) > 1:
-                        # 假设AS标签是第二列
+                        # TODO: Translate '假设'ASlabelsissecond列
                         as_labels.extend(batch['labels'][:, 1].cpu().numpy())
                 
                 if len(as_labels) > 0:
@@ -237,11 +237,11 @@ class CardiacTrainer:
                     unique, counts = np.unique(as_labels, return_counts=True)
                     total = len(as_labels)
                     
-                    # 计算权重：总数 / (类别数 * 每类样本数)
+                    # Calculateweights：total / (class别数 * 每classsample数)
                     weights = total / (len(unique) * counts)
                     
-                    # 创建权重张量，索引对应类别标签
-                    class_weights = torch.zeros(2)  # 假设只有0和1两类
+                    # Createweights张量，index对应class别labels
+                    class_weights = torch.zeros(2)  # TODO: Translate '假设只'has0and1两class
                     for i, label in enumerate(unique):
                         class_weights[int(label)] = weights[i]
                     
@@ -249,43 +249,43 @@ class CardiacTrainer:
             
             return None
         except Exception as e:
-            self.logger.warning(f"计算类别权重失败: {e}")
+            self.logger.warning(f"CalculateClass权重失败: {e}")
             return None
     
     def _print_label_distribution(self):
-        """打印训练和验证集的标签分布"""
+        """Print训练和Validation set的标签分布"""
         try:
             self.logger.info("=" * 60)
-            self.logger.info("📊 数据集标签分布统计")
+            self.logger.info("📊 数据集Label Distribution Statistics")
             self.logger.info("=" * 60)
             
-            # 统计训练集
+            # statisticsTrain集
             if hasattr(self, 'train_loader') and self.train_loader is not None:
-                train_stats = self._get_dataset_stats(self.train_loader, "训练集")
+                train_stats = self._get_dataset_stats(self.train_loader, "Training set")
                 
-            # 统计验证集
+            # statisticsvalidate集
             if hasattr(self, 'val_loader') and self.val_loader is not None:
-                val_stats = self._get_dataset_stats(self.val_loader, "验证集")
+                val_stats = self._get_dataset_stats(self.val_loader, "Validation set")
                 
             self.logger.info("=" * 60)
             
         except Exception as e:
-            self.logger.warning(f"统计标签分布失败: {e}")
+            self.logger.warning(f"Statistics标签分布失败: {e}")
     
     def _get_dataset_stats(self, dataloader, dataset_name):
-        """获取数据集统计信息"""
+        """Get数据集Statisticsinfo"""
         lvef_values = []
         as_labels = []
         
-        # 临时设置为评估模式以避免影响训练
+        # TODO: Translate '临时'Set为Evaluatemode以避免影响Train
         original_training = self.model.training
         self.model.eval()
         
         try:
             with torch.no_grad():
                 for i, batch in enumerate(dataloader):
-                    # 只统计前几个batch以加快速度
-                    if i >= 10:  # 最多统计10个batch
+                    # TODO: Translate '只'statistics前几个batch以加fast度
+                    if i >= 10:  # TODO: Translate '最多'statistics10个batch
                         break
                         
                     if 'lvef' in batch:
@@ -298,37 +298,37 @@ class CardiacTrainer:
                         lvef_values.extend(batch['labels'][:, 0].cpu().numpy())
                         as_labels.extend(batch['labels'][:, 1].cpu().numpy())
         finally:
-            # 恢复原始训练模式
+            # restore原始Trainmode
             self.model.train(original_training)
         
-        # 统计LVEF
+        # statisticsLVEF
         if len(lvef_values) > 0:
             lvef_values = np.array(lvef_values)
-            self.logger.info(f"{dataset_name} LVEF统计:")
-            self.logger.info(f"  样本数: {len(lvef_values)}")
+            self.logger.info(f"{dataset_name} LVEFStatistics:")
+            self.logger.info(f"  Sample数: {len(lvef_values)}")
             self.logger.info(f"  均值: {lvef_values.mean():.2f}")
-            self.logger.info(f"  标准差: {lvef_values.std():.2f}")
-            self.logger.info(f"  范围: [{lvef_values.min():.2f}, {lvef_values.max():.2f}]")
+            self.logger.info(f"  Standard deviation: {lvef_values.std():.2f}")
+            self.logger.info(f"  Range: [{lvef_values.min():.2f}, {lvef_values.max():.2f}]")
         
-        # 统计AS标签
+        # statisticsASlabels
         if len(as_labels) > 0:
             as_labels = np.array(as_labels)
             unique, counts = np.unique(as_labels, return_counts=True)
             total = len(as_labels)
             
-            self.logger.info(f"{dataset_name} AS分类统计:")
-            self.logger.info(f"  总样本数: {total}")
+            self.logger.info(f"{dataset_name} AS分类Statistics:")
+            self.logger.info(f"  总Sample数: {total}")
             for label, count in zip(unique, counts):
                 percentage = (count / total) * 100
-                self.logger.info(f"  类别 {int(label)}: {count} 样本 ({percentage:.1f}%)")
+                self.logger.info(f"  Class {int(label)}: {count} Sample ({percentage:.1f}%)")
             
-            # 计算正负样本比例
+            # Calculate正负sample比例
             if len(unique) == 2:
                 pos_count = counts[unique == 1][0] if 1 in unique else 0
                 neg_count = counts[unique == 0][0] if 0 in unique else 0
                 if neg_count > 0:
                     ratio = pos_count / neg_count
-                    self.logger.info(f"  正负样本比例: 1:{ratio:.2f}")
+                    self.logger.info(f"  正负Sample比例: 1:{ratio:.2f}")
         
         return {'lvef_stats': lvef_values if len(lvef_values) > 0 else None,
                 'as_stats': as_labels if len(as_labels) > 0 else None}
@@ -428,40 +428,39 @@ class CardiacTrainer:
         return avg_loss
     
     def validate_epoch(self, val_loader, epoch):
-        """验证一个epoch"""
+        """Validate一个epoch"""
         self.model.eval()
         epoch_loss = 0.0
         all_predictions = []
         all_targets = []
         
-        # 创建验证进度条
+        # Createvalidate进度条
         pbar = tqdm(val_loader, desc=f'Validating', ncols=120, leave=False)
         
         with torch.no_grad():
             for batch in pbar:
                 images = batch['image'].to(self.device)
                 
-                # 从cardiac_metrics中提取LVEF和AS目标值
+                # fromcardiac_metrics中ExtractLVEFandAS目标value
                 cardiac_metrics = batch['cardiac_metrics'].to(self.device)
                 if cardiac_metrics.shape[1] >= 2:
-                    lvef_targets = cardiac_metrics[:, 0]  # LVEF目标值
-                    as_targets = cardiac_metrics[:, 1]    # AS目标值
+                    lvef_targets = cardiac_metrics[:, 0]  # LVEF目标value
+                    as_targets = cardiac_metrics[:, 1]    # AS目标value
                 else:
                     lvef_targets = cardiac_metrics[:, 0]
                     as_targets = torch.zeros_like(lvef_targets)
                 
-                # 前向传播
-                lvef_preds, as_preds = self.model(images)
+                # TODO: Translate '前向传播'lvef_preds, as_preds = self.model(images)
                 
-                # 计算损失
+                # Calculateloss
                 loss_dict = self.criterion(lvef_preds, as_preds, lvef_targets, as_targets)
                 loss = loss_dict['total_loss']
                 epoch_loss += loss.item()
                 
-                # 更新验证进度条
+                # updatevalidate进度条
                 pbar.set_postfix({'Val Loss': f'{loss.item():.4f}'})
                 
-                # 收集预测和真值用于指标计算
+                # TODO: Translate '收集'Predictand真value用于指标Calculate
                 predictions = torch.stack([lvef_preds.squeeze(), as_preds.squeeze()], dim=1)
                 targets = torch.stack([lvef_targets, as_targets], dim=1)
                 all_predictions.append(predictions.cpu().numpy())
@@ -472,14 +471,14 @@ class CardiacTrainer:
         avg_loss = epoch_loss / len(val_loader)
         self.val_losses.append(avg_loss)
         
-        # 计算评估指标
+        # CalculateEvaluate指标
         all_predictions = np.concatenate(all_predictions, axis=0)
         all_targets = np.concatenate(all_targets, axis=0)
         
         metrics = self._calculate_metrics(all_predictions, all_targets)
         
-        # 记录验证结果
-        self.logger.info(f'验证结果 - Epoch {epoch+1:3d} | Loss: {avg_loss:.6f}')
+        # recordvalidateresults
+        self.logger.info(f'Validate结果 - Epoch {epoch+1:3d} | Loss: {avg_loss:.6f}')
         for metric_name, value in metrics.items():
             self.logger.info(f'  {metric_name}: {value:.4f}')
         
@@ -491,12 +490,12 @@ class CardiacTrainer:
         return avg_loss, metrics
     
     def _calculate_metrics(self, predictions, targets):
-        """计算评估指标"""
+        """Calculate评估指标"""
         from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
         
         metrics = {}
         
-        # LVEF回归指标（第0列）
+        # LVEFregression指标（第0列）
         lvef_preds = predictions[:, 0]
         lvef_targets = targets[:, 0]
         
@@ -504,11 +503,11 @@ class CardiacTrainer:
         metrics['LVEF_MAE'] = mean_absolute_error(lvef_targets, lvef_preds)
         metrics['LVEF_R2'] = r2_score(lvef_targets, lvef_preds)
         
-        # AS分类指标（第1列）
+        # ASclassification指标（第1列）
         as_preds = predictions[:, 1]
         as_targets = targets[:, 1]
         
-        # 将概率转换为二分类预测
+        # TODO: Translate '将概率'Convert为二classificationPredict
         as_pred_binary = (as_preds > 0.5).astype(int)
         as_targets_binary = as_targets.astype(int)
         
@@ -517,7 +516,7 @@ class CardiacTrainer:
         metrics['AS_Recall'] = recall_score(as_targets_binary, as_pred_binary, zero_division=0)
         metrics['AS_F1'] = f1_score(as_targets_binary, as_pred_binary, zero_division=0)
         
-        # 计算AS的AUC
+        # CalculateAS的AUC
         try:
             from sklearn.metrics import roc_auc_score
             metrics['AS_AUC'] = roc_auc_score(as_targets_binary, as_preds)
@@ -527,7 +526,7 @@ class CardiacTrainer:
         return metrics
     
     def save_checkpoint(self, epoch, is_best=False):
-        """保存检查点"""
+        """SaveCheck点"""
         checkpoint = {
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
@@ -539,17 +538,17 @@ class CardiacTrainer:
             'config': self.config
         }
         
-        # 保存最新检查点
+        # Save最新Checkpoint
         torch.save(checkpoint, self.output_dir / 'checkpoint_latest.pth')
         
-        # 保存最佳模型
+        # Save最佳model
         if is_best:
             torch.save(checkpoint, self.output_dir / 'checkpoint_best.pth')
             torch.save(self.model.state_dict(), self.output_dir / 'best_model.pth')
-            self.logger.info(f'💾 保存最佳模型 (Epoch {epoch+1}, Val Loss: {self.best_val_loss:.6f})')
+            self.logger.info(f'💾 Save最佳模型 (Epoch {epoch+1}, Val Loss: {self.best_val_loss:.6f})')
     
     def load_checkpoint(self, checkpoint_path):
-        """加载检查点"""
+        """LoadCheck点"""
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         
         self.model.load_state_dict(checkpoint['model_state_dict'])
@@ -562,18 +561,18 @@ class CardiacTrainer:
         self.val_losses = checkpoint.get('val_losses', [])
         self.best_val_loss = checkpoint.get('best_val_loss', float('inf'))
         
-        self.logger.info(f'从 {checkpoint_path} 加载检查点')
+        self.logger.info(f'从 {checkpoint_path} LoadCheck点')
         return checkpoint['epoch']
     
     def train(self, train_loader, val_loader=None, start_epoch=0):
         """完整训练流程"""
         epochs = self.config.get('epochs', 100)
         
-        # 存储数据加载器供其他方法使用
+        # TODO: Translate '存储'dataLoad器供其他method使用
         self.train_loader = train_loader
         self.val_loader = val_loader
         
-        # 打印训练开始信息
+        # PrintTrainstartinfo
         print("=" * 80)
         print(f"🚀 开始训练心脏功能预测模型")
         print("=" * 80)
@@ -584,10 +583,10 @@ class CardiacTrainer:
         print(f"   设备: {self.device}")
         print(f"   优化器: {self.config.get('optimizer', 'adam')}")
         print(f"   调度器: {self.config.get('scheduler', {}).get('type', 'None')}")
-        print(f"📁 数据统计:")
-        print(f"   训练集大小: {len(train_loader.dataset)}")
+        print(f"📁 数据Statistics:")
+        print(f"   Training set大小: {len(train_loader.dataset)}")
         if val_loader:
-            print(f"   验证集大小: {len(val_loader.dataset)}")
+            print(f"   Validation set大小: {len(val_loader.dataset)}")
         print(f"   每轮批次数: {len(train_loader)}")
         print(f"💾 输出目录: {self.output_dir}")
         if self.writer:
@@ -596,66 +595,66 @@ class CardiacTrainer:
         
         self.logger.info(f'开始训练，共 {epochs} 个epoch')
         
-        # 打印标签分布统计
+        # Printlabels分布statistics
         self._print_label_distribution()
         
-        # 训练开始时间
+        # Trainstarttime
         training_start_time = time.time()
         
         for epoch in range(start_epoch, epochs):
             epoch_start_time = time.time()
             
-            # 打印epoch开始信息
+            # Printepochstartinfo
             print(f"\n🔄 Epoch {epoch+1}/{epochs}")
             print("-" * 50)
             
-            # 训练
+            # Train
             train_loss = self.train_epoch(train_loader, epoch)
             
-            # 验证
+            # validate
             val_loss, val_metrics = None, {}
             if val_loader:
                 val_loss, val_metrics = self.validate_epoch(val_loader, epoch)
                 
-                # 更新学习率调度器
+                # updatelearning rate调度器
                 if self.scheduler:
                     if isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                         self.scheduler.step(val_loss)
                     else:
                         self.scheduler.step()
                 
-                # 检查是否为最佳模型
+                # Checkis否为最佳model
                 is_best = val_loss < self.best_val_loss
                 if is_best:
                     improvement = self.best_val_loss - val_loss
                     self.best_val_loss = val_loss
-                    print(f"✨ 新的最佳模型！验证损失降低了 {improvement:.6f}")
+                    print(f"✨ 新的最佳模型！Validate损失降低了 {improvement:.6f}")
                 
-                # 保存检查点
+                # SaveCheckpoint
                 if epoch % self.config.get('save_interval', 10) == 0 or is_best:
                     self.save_checkpoint(epoch, is_best)
             else:
-                # 无验证集时
+                # TODO: Translate '无'validate集时
                 if self.scheduler and not isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                     self.scheduler.step()
                 
                 if epoch % self.config.get('save_interval', 10) == 0:
                     self.save_checkpoint(epoch)
             
-            # 计算时间
+            # Calculatetime
             epoch_time = time.time() - epoch_start_time
             self.epoch_times.append(epoch_time)
             
-            # 预估剩余时间
-            avg_epoch_time = np.mean(self.epoch_times[-10:])  # 使用最近10个epoch的平均时间
+            # TODO: Translate '预估剩余'time
+            avg_epoch_time = np.mean(self.epoch_times[-10:])  # TODO: Translate '使用最近10个'epoch的averagetime
             remaining_epochs = epochs - epoch - 1
             estimated_remaining_time = avg_epoch_time * remaining_epochs
             
-            # 打印epoch总结
+            # Printepoch总结
             print(f"📊 Epoch {epoch+1} 总结:")
             print(f"   训练损失: {train_loss:.6f}")
             if val_loss is not None:
-                print(f"   验证损失: {val_loss:.6f}")
+                print(f"   Validate损失: {val_loss:.6f}")
                 print(f"   LVEF R²: {val_metrics.get('LVEF_R2', 0):.4f}")
                 print(f"   AS 准确率: {val_metrics.get('AS_Accuracy', 0):.4f}")
             print(f"   轮次耗时: {self._format_time(epoch_time)}")
@@ -663,23 +662,23 @@ class CardiacTrainer:
             print(f"   预估剩余: {self._format_time(estimated_remaining_time)}")
             print(f"   当前学习率: {self.optimizer.param_groups[0]['lr']:.2e}")
             
-            # 记录到tensorboard
+            # recordtotensorboard
             if self.writer:
                 self.writer.add_scalar('Train/EpochLoss', train_loss, epoch)
                 self.writer.add_scalar('Train/EpochTime', epoch_time, epoch)
                 if val_loader:
                     self.writer.add_scalar('Val/EpochLoss', val_loss, epoch)
         
-        # 训练完成
+        # Traincomplete
         total_training_time = time.time() - training_start_time
         
         print("\n" + "=" * 80)
         print("🎉 训练完成！")
         print("=" * 80)
-        print(f"📈 训练统计:")
+        print(f"📈 训练Statistics:")
         print(f"   总训练时间: {self._format_time(total_training_time)}")
         print(f"   平均每轮时间: {self._format_time(np.mean(self.epoch_times))}")
-        print(f"   最佳验证损失: {self.best_val_loss:.6f}")
+        print(f"   最佳Validate损失: {self.best_val_loss:.6f}")
         print(f"💾 输出文件:")
         print(f"   最佳模型: {self.output_dir}/best_model.pth")
         print(f"   训练日志: {self.output_dir}/training.log")
@@ -690,10 +689,10 @@ class CardiacTrainer:
         
         self.logger.info('训练完成！')
         
-        # 保存最终模型
+        # Save最终model
         self.save_checkpoint(epochs - 1)
         
-        # 保存训练配置
+        # SaveTrainconfig
         with open(self.output_dir / 'config.json', 'w') as f:
             json.dump(self.config, f, indent=2)
         
@@ -702,22 +701,22 @@ class CardiacTrainer:
 
 
 def load_and_validate_csv_data(config):
-    """加载和验证CSV数据"""
+    """Load和ValidateCSV数据"""
     csv_path = config.get('csv_path')
     if not csv_path or not os.path.exists(csv_path):
-        raise FileNotFoundError(f"CSV文件不存在: {csv_path}")
+        raise FileNotFoundError(f"CSV file does not exist: {csv_path}")
     
-    print(f"从 {csv_path} 读取数据...")
+    print(f"从 {csv_path} Read数据...")
     df = pd.read_csv(csv_path)
     print(f"原始数据集大小: {len(df)} 行")
     
-    # 检查必需的列
+    # Check必需的列
     required_columns = config.get('required_columns', ['basename', 'folder'])
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
-        raise ValueError(f"CSV文件中缺少必需的列: {missing_columns}")
+        raise ValueError(f"CSV文件中Missing required columns: {missing_columns}")
     
-    # 检查心脏功能指标列
+    # Checkcardiac function指标列
     cardiac_metric_columns = config.get('cardiac_metric_columns', [])
     if not cardiac_metric_columns:
         raise ValueError("配置中必须指定cardiac_metric_columns，不能使用模拟数据进行训练。"
@@ -730,31 +729,31 @@ def load_and_validate_csv_data(config):
     
     print(f"找到心脏功能指标列: {cardiac_metric_columns}")
     
-    # 检查是否至少需要2个心脏功能指标（LVEF和AS）
+    # Checkis否至少需要2个cardiac function指标（LVEFandAS）
     if len(cardiac_metric_columns) < 2:
         raise ValueError(f"至少需要2个心脏功能指标列（LVEF和AS），但只提供了 {len(cardiac_metric_columns)} 个: {cardiac_metric_columns}")
     
-    # 数据清理
+    # dataClean
     if config.get('remove_missing_files', True):
         initial_count = len(df)
         df = df.dropna(subset=['basename', 'folder'])
         df = df[df['basename'].notna() & df['folder'].notna()]
         if len(df) < initial_count:
-            print(f"移除了 {initial_count - len(df)} 行缺失basename或folder的数据")
+            print(f"Remove了 {initial_count - len(df)} 行缺失basename或folder的数据")
     
-    # 移除重复项
+    # Remove重复项
     if config.get('remove_duplicates', True):
         initial_count = len(df)
         df = df.drop_duplicates(subset=['basename', 'folder'])
         if len(df) < initial_count:
-            print(f"移除了 {initial_count - len(df)} 行重复数据")
+            print(f"Remove了 {initial_count - len(df)} 行重复数据")
     
-    print(f"清理后数据集大小: {len(df)} 行")
+    print(f"Clean后数据集大小: {len(df)} 行")
     return df, cardiac_metric_columns
 
 
 def build_data_list(df, config, cardiac_metric_columns):
-    """从DataFrame构建数据列表"""
+    """从DataFrameBuild数据列表"""
     base_path = config.get('base_path', '/dataNAS/data/ct_data/ct_scans')
     data_list = []
     missing_files = []
@@ -763,7 +762,7 @@ def build_data_list(df, config, cardiac_metric_columns):
         basename = row['basename']
         folder = row['folder']
         
-        # 构建文件路径
+        # Buildfilepath
         image_path_template = config.get('image_path_template', '{base_path}/stanford_{folder}/{basename}.nii.gz')
         image_path = image_path_template.format(
             base_path=base_path,
@@ -771,20 +770,20 @@ def build_data_list(df, config, cardiac_metric_columns):
             basename=basename
         )
         
-        # 检查文件是否存在
+        # Checkfileis否存in
         if config.get('check_file_exists', False):
             if not os.path.exists(image_path):
                 missing_files.append(image_path)
                 continue
         
-        # 获取心脏功能指标数据
+        # Getcardiac function指标data
         cardiac_metrics = None
         try:
             cardiac_metrics = []
             for col in cardiac_metric_columns:
                 value = row[col]
                 if pd.isna(value):
-                    print(f"警告: 行 {idx} (basename: {basename}) 的列 '{col}' 缺少数据，跳过该样本")
+                    print(f"警告: 行 {idx} (basename: {basename}) 的列 '{col}' 缺少数据，跳过该Sample")
                     cardiac_metrics = None
                     break
                 cardiac_metrics.append(float(value))
@@ -792,14 +791,14 @@ def build_data_list(df, config, cardiac_metric_columns):
             if cardiac_metrics is not None:
                 cardiac_metrics = np.array(cardiac_metrics, dtype=np.float32)
         except (ValueError, TypeError) as e:
-            print(f"警告: 行 {idx} (basename: {basename}) 的心脏功能指标数据无效: {e}，跳过该样本")
+            print(f"警告: 行 {idx} (basename: {basename}) 的心脏功能指标数据无效: {e}，跳过该Sample")
             cardiac_metrics = None
         
-        # 如果没有有效的心脏功能指标数据，跳过这个样本
+        # if没hashas效的cardiac function指标data，skip这个sample
         if cardiac_metrics is None:
             continue
         
-        # 收集其他元数据
+        # TODO: Translate '收集其他元'data
         metadata = {}
         metadata_columns = config.get('metadata_columns', [])
         for col in metadata_columns:
@@ -817,10 +816,10 @@ def build_data_list(df, config, cardiac_metric_columns):
         
         data_list.append(data_item)
     
-    print(f"成功构建 {len(data_list)} 个数据项")
+    print(f"成功Build {len(data_list)} 个数据项")
     
     if missing_files and config.get('check_file_exists', False):
-        print(f"警告: 有 {len(missing_files)} 个文件不存在")
+        print(f"警告: 有 {len(missing_files)} 个file does not exist")
         if len(missing_files) <= 5:
             print("缺失的文件:")
             for f in missing_files:
@@ -834,13 +833,13 @@ def build_data_list(df, config, cardiac_metric_columns):
 
 
 def split_data(data_list, config):
-    """分割数据为训练集和验证集"""
+    """Split数据为Training set和Validation set"""
     split_method = config.get('split_method', 'random')
     split_ratio = config.get('train_val_split', 0.8)
     random_state = config.get('seed', 42)
     
     if split_method == 'random':
-        # 随机分割
+        # randomSplit
         train_data, val_data = train_test_split(
             data_list, 
             train_size=split_ratio, 
@@ -848,12 +847,12 @@ def split_data(data_list, config):
             shuffle=True
         )
     elif split_method == 'sequential':
-        # 顺序分割
+        # sequenceSplit
         split_idx = int(len(data_list) * split_ratio)
         train_data = data_list[:split_idx]
         val_data = data_list[split_idx:]
     elif split_method == 'patient_based':
-        # 基于患者ID的分割（避免同一患者的数据出现在训练和验证集中）
+        # TODO: Translate '基于患者'ID的Split（避免同一患者的data出现inTrainandvalidate集中）
         patient_ids = list(set([item['patient_id'] for item in data_list]))
         train_patients, val_patients = train_test_split(
             patient_ids,
@@ -865,30 +864,30 @@ def split_data(data_list, config):
         train_data = [item for item in data_list if item['patient_id'] in train_patients]
         val_data = [item for item in data_list if item['patient_id'] in val_patients]
     else:
-        raise ValueError(f"不支持的数据分割方法: {split_method}")
+        raise ValueError(f"不支持的数据Split method: {split_method}")
     
-    print(f"数据分割完成:")
-    print(f"  训练集: {len(train_data)} 个样本")
-    print(f"  验证集: {len(val_data)} 个样本")
+    print(f"数据Split完成:")
+    print(f"  Training set: {len(train_data)} samples")
+    print(f"  Validation set: {len(val_data)} samples")
     
     return train_data, val_data
 
 
 def create_data_loaders(config):
-    """创建数据加载器"""
-    # 加载和验证CSV数据
+    """Create数据Load器"""
+    # LoadandvalidateCSVdata
     df, cardiac_metric_columns = load_and_validate_csv_data(config)
     
-    # 构建数据列表
+    # Builddata列表
     data_list = build_data_list(df, config, cardiac_metric_columns)
     
     if not data_list:
         raise ValueError("没有有效的数据项")
     
-    # 分割数据
+    # Splitdata
     train_data, val_data = split_data(data_list, config)
     
-    # 创建数据集
+    # Createdata集
     train_dataset = CardiacDataset(
         train_data, 
         cardiac_metric_columns=cardiac_metric_columns
@@ -901,14 +900,14 @@ def create_data_loaders(config):
             cardiac_metric_columns=cardiac_metric_columns
         )
     
-    # 创建数据加载器
+    # CreatedataLoad器
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.get('batch_size', 4),
         shuffle=True,
         num_workers=config.get('num_workers', 4),
         pin_memory=True,
-        drop_last=True  # 训练时必须设置为True，避免BatchNorm错误
+        drop_last=True  # Train时必须Set为True，避免BatchNormerror
     )
     
     val_loader = None
@@ -922,7 +921,7 @@ def create_data_loaders(config):
             drop_last=False
         )
     
-    # 保存数据统计信息
+    # Savedatastatisticsinfo
     data_info = {
         'total_samples': len(data_list),
         'train_samples': len(train_data),
@@ -932,7 +931,7 @@ def create_data_loaders(config):
         'split_ratio': config.get('train_val_split', 0.8)
     }
     
-    # 保存到输出目录
+    # SavetoOutput目录
     output_dir = Path(config['output_dir'])
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / 'data_info.json', 'w', encoding='utf-8') as f:

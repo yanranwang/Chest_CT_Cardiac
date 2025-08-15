@@ -1,19 +1,19 @@
-# 混合数据加载器使用指南
+# Hybrid Data Loader Usage Guide
 
-## 概述
+## Overview
 
-混合数据加载器 (`HybridCardiacDataset`) 允许您：
-- 从 **CSV 文件** 读取标签数据
-- 从 **HDF5 文件** 读取预处理的图像数据
+The hybrid data loader (`HybridCardiacDataset`) allows you to:
+- Read label data from **CSV files**
+- Read preprocessed image data from **HDF5 files**
 
-这种方式特别适用于以下场景：
-1. 您已经有预处理好的 HDF5 图像数据
-2. 标签数据在 CSV 文件中，且可能经常更新
-3. 避免重新运行耗时的数据预处理过程
+This approach is particularly suitable for the following scenarios:
+1. You already have preprocessed HDF5 image data
+2. Label data is in CSV files and may be updated frequently
+3. Avoid re-running time-consuming data preprocessing
 
-## 配置文件
+## Configuration File
 
-使用 `configs/hybrid_cardiac_training_config.json` 配置文件，关键设置：
+Use the `configs/hybrid_cardiac_training_config.json` configuration file with key settings:
 
 ```json
 {
@@ -25,81 +25,81 @@
 }
 ```
 
-## 数据要求
+## Data Requirements
 
-### CSV 文件要求
-CSV 文件必须包含以下列：
-- `basename`: 文件基础名称
-- `folder`: 文件夹名称  
-- 标签列 (如 `lvef`, `AS_maybe`)
+### CSV File Requirements
+CSV files must contain the following columns:
+- `basename`: File base name
+- `folder`: Folder name  
+- Label columns (e.g., `lvef`, `AS_maybe`)
 
-示例：
+Example:
 ```csv
 basename,folder,lvef,AS_maybe,patient_id
 LA3dd33e5-LA3dd5b65,1A,61.47,0.0,patient_001
 LA3dd74cb-LA3dd962e,1A,55.23,1.0,patient_002
 ```
 
-### HDF5 文件要求
-HDF5 文件应包含 `images` 组，其中：
-- 键名格式：`{folder}_{basename}` (例如: `1A_LA3dd33e5-LA3dd5b65`)
-- 值：预处理的图像数据 (numpy array)
+### HDF5 File Requirements
+HDF5 files should contain an `images` group with:
+- Key format: `{folder}_{basename}` (e.g., `1A_LA3dd33e5-LA3dd5b65`)
+- Values: Preprocessed image data (numpy array)
 
-## 使用步骤
+## Usage Steps
 
-### 1. 检查数据文件
-确保以下文件存在且格式正确：
+### 1. Check Data Files
+Ensure the following files exist and are properly formatted:
 ```bash
-# 检查 CSV 文件
+# Check CSV file
 head /pasteur2/u/xhanwang/Chest_CT_Cardiac/filtered_echo_chestCT_data_filtered_chest_data.csv
 
-# 检查 HDF5 文件
+# Check HDF5 file
 ls -la /pasteur2/u/xhanwang/Chest_CT_Cardiac/outputs/cardiac_training_as_maybe/preprocessed_data.h5
 ```
 
-### 2. 运行训练
+### 2. Run Training
 ```bash
 cd /pasteur2/u/xhanwang/Chest_CT_Cardiac
 python examples/cardiac_training_example.py --config configs/hybrid_cardiac_training_config.json
 ```
 
-## 数据匹配逻辑
+## Data Matching Logic
 
-混合数据加载器会：
-1. 读取 CSV 文件中的所有行
-2. 对每一行，构建 `item_id = {folder}_{basename}`
-3. 检查 HDF5 文件中是否存在对应的图像数据
-4. 只保留在两个文件中都存在的数据项
-5. 显示匹配统计信息
+The hybrid data loader will:
+1. Read all rows from the CSV file
+2. For each row, construct `item_id = {folder}_{basename}`
+3. Check if corresponding image data exists in the HDF5 file
+4. Keep only data items that exist in both files
+5. Display matching statistics
 
-## 优势
+## Advantages
 
-1. **灵活性**: 可以独立更新标签而不需要重新处理图像
-2. **效率**: 避免重复的图像预处理
-3. **兼容性**: 可以使用现有的预处理数据
-4. **调试友好**: 提供详细的数据匹配信息
+1. **Flexibility**: Can independently update labels without reprocessing images
+2. **Efficiency**: Avoid redundant image preprocessing
+3. **Compatibility**: Can use existing preprocessed data
+4. **Debug-friendly**: Provides detailed data matching information
 
-## 故障排除
+## Troubleshooting
 
-### 常见问题
+### Common Issues
 
-1. **"没有找到匹配的数据项"**
-   - 检查 CSV 中的 `basename` 和 `folder` 列
-   - 确认 HDF5 中的键名格式是否为 `{folder}_{basename}`
+1. **"No matching data items found"**
+   - Check the `basename` and `folder` columns in CSV
+   - Confirm if the key format in HDF5 is `{folder}_{basename}`
 
-2. **"标签列缺失"**
-   - 确认 CSV 文件包含配置中指定的标签列
-   - 检查列名是否完全匹配（区分大小写）
+2. **"Label columns missing"**
+   - Confirm the CSV file contains the label columns specified in configuration
+   - Check if column names match exactly (case-sensitive)
 
-3. **"HDF5 文件无法读取"**
-   - 检查文件路径是否正确
-   - 确认文件没有损坏
-   - 验证文件权限
+3. **"HDF5 file cannot be read"**
+   - Check if the file path is correct
+   - Confirm the file is not corrupted
+   - Verify file permissions
 
-### 调试命令
+### Debug Commands
 
 ```python
-# 在 Python 中检查 HDF5 文件结构
+# Check HDF5 file structure in Python
 import h5py
 with h5py.File('/path/to/preprocessed_data.h5', 'r') as f:
     print("Groups:", list(f.keys()))
@@ -107,13 +107,13 @@ with h5py.File('/path/to/preprocessed_data.h5', 'r') as f:
         print("Sample keys:", list(f['images'].keys())[:5])
 ```
 
-## 配置参数说明
+## Configuration Parameters
 
-| 参数 | 描述 | 默认值 |
-|------|------|--------|
-| `use_hybrid_loader` | 启用混合数据加载器 | `false` |
-| `csv_path` | CSV 标签文件路径 | 必需 |
-| `hdf5_path` | HDF5 图像文件路径 | 必需 |
-| `label_columns` | 标签列名列表 | `["lvef", "AS_maybe"]` |
-| `cache_size` | 图像缓存大小 | `200` |
-| `enable_cache` | 是否启用缓存 | `true` | 
+| Parameter | Description | Default Value |
+|-----------|-------------|---------------|
+| `use_hybrid_loader` | Enable hybrid data loader | `false` |
+| `csv_path` | CSV label file path | Required |
+| `hdf5_path` | HDF5 image file path | Required |
+| `label_columns` | List of label column names | `["lvef", "AS_maybe"]` |
+| `cache_size` | Image cache size | `200` |
+| `enable_cache` | Whether to enable caching | `true` | 

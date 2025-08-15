@@ -1,30 +1,30 @@
-# 核心深度学习框架
+# Core deep learning frameworks
 torch>=1.9.0
 torchvision>=0.10.0
 
-# 数据处理
+# Data processing
 numpy>=1.20.0
 pandas>=1.3.0
 scikit-learn>=0.24.0
 
-# 数据存储和读取
+# Data storage and reading
 h5py>=3.1.0
 
-# 图像处理和医学图像
+# Image processing and medical imaging
 monai>=0.8.0
 nibabel>=3.2.0
 
-# 可视化和监控
+# Visualization and monitoring
 tensorboard>=2.7.0
 matplotlib>=3.3.0
 
-# 进度条和工具
+# Progress bars and tools
 tqdm>=4.60.0
 pathlib2>=2.3.0
 
-# 配置和日志
+# Configuration and logging
 pyyaml>=5.4.0
 
-# 可选：Jupyter支持
+# Optional: Jupyter support
 jupyter>=1.0.0
 ipython>=7.0.0 

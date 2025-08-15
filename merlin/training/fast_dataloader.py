@@ -32,7 +32,7 @@ warnings.filterwarnings('ignore')
 
 
 class HybridCardiacDataset(Dataset):
-    """混合心脏功能数据集 - 从CSV读取标签，从HDF5读取图像数据"""
+    """混合心脏功能数据集 - 从CSVRead标签，从HDF5Read图像数据"""
     
     def __init__(self, 
                  csv_path: str,
@@ -41,11 +41,11 @@ class HybridCardiacDataset(Dataset):
                  cache_size: int = 100,
                  label_columns: List[str] = None):
         """
-        初始化混合数据集
+        Initialize混合数据集
         
         Args:
             csv_path: CSV文件路径，包含标签数据
-            hdf5_path: HDF5文件路径，包含预处理的图像数据
+            hdf5_path: HDF5文件路径，包含预Process的图像数据
             enable_cache: 是否启用缓存
             cache_size: 缓存大小
             label_columns: 标签列名列表，默认为['lvef', 'AS_maybe']
@@ -56,41 +56,41 @@ class HybridCardiacDataset(Dataset):
         self.cache_size = cache_size
         self.label_columns = label_columns or ['lvef', 'AS_maybe']
         
-        # 初始化缓存
+        # Initialize cache
         if self.enable_cache:
             self._cache = {}
         
-        # 读取CSV数据
+        # Read CSV data
         self.df = pd.read_csv(csv_path)
-        print(f"从CSV文件读取了 {len(self.df)} 行数据")
+        print(f"Read {len(self.df)} rows of data from CSV file")
         
-        # 检查必需的列
+        # Check required columns
         required_columns = ['basename', 'folder'] + self.label_columns
         missing_columns = [col for col in required_columns if col not in self.df.columns]
         if missing_columns:
-            raise ValueError(f"CSV文件中缺少必需的列: {missing_columns}")
+            raise ValueError(f"Missing required columns in CSV file: {missing_columns}")
         
-        # 清理数据：移除缺失标签的行
+        # Clean data: remove rows with missing labels
         initial_count = len(self.df)
         self.df = self.df.dropna(subset=self.label_columns)
-        print(f"移除缺失标签后剩余 {len(self.df)} 行数据")
+        print(f"Remove缺失标签后剩余 {len(self.df)} 行数据")
         
         if len(self.df) == 0:
-            raise ValueError("清理后没有有效的数据行")
+            raise ValueError("No valid data rows after cleaning")
         
-        # 验证HDF5文件
+        # validateHDF5file
         if not os.path.exists(hdf5_path):
-            raise FileNotFoundError(f"HDF5文件不存在: {hdf5_path}")
+            raise FileNotFoundError(f"HDF5 file does not exist: {hdf5_path}")
         
-        # 检查HDF5中的数据项
+        # CheckHDF5中的data项
         with h5py.File(hdf5_path, 'r') as f:
             if 'images' not in f:
-                raise ValueError(f"HDF5文件中没有'images'组: {hdf5_path}")
+                raise ValueError(f"No 'images' group in HDF5 file: {hdf5_path}")
             self.hdf5_keys = set(f['images'].keys())
         
-        print(f"HDF5文件中有 {len(self.hdf5_keys)} 个图像数据项")
+        print(f"Found {len(self.hdf5_keys)} image data items in HDF5 file")
         
-        # 尝试加载元数据文件来获取哈希映射
+        # TODO: Translate '尝试'Load元datafile来Gethashmapping
         metadata_path = os.path.join(os.path.dirname(hdf5_path), 'data_metadata.json')
         hash_to_info = {}
         
@@ -106,13 +106,13 @@ class HybridCardiacDataset(Dataset):
                                 'basename': item['basename'],
                                 'folder': item['folder']
                             }
-                    print(f"从元数据文件加载了 {len(hash_to_info)} 个哈希映射")
+                    print(f"从元数据文件Loaded {len(hash_to_info)} hash mappings")
                 else:
                     print("元数据文件格式不支持，使用传统格式")
             except Exception as e:
-                print(f"警告: 无法读取元数据文件 {metadata_path}: {e}")
+                print(f"Warning: Unable to read metadata file {metadata_path}: {e}")
         
-        # 构建item_id到CSV行的映射
+        # Builditem_idtoCSV行的mapping
         self.valid_items = []
         missing_in_hdf5 = []
         
@@ -120,17 +120,17 @@ class HybridCardiacDataset(Dataset):
             basename = row['basename']
             folder = row['folder']
             
-            # 首先尝试传统格式 {folder}_{basename}
+            # TODO: Translate '首先尝试传统'format {folder}_{basename}
             traditional_item_id = f"{folder}_{basename}"
             
-            # 然后尝试从哈希映射中查找
+            # then尝试fromhashmapping中find
             hash_item_id = None
             for hash_id, info in hash_to_info.items():
                 if info['basename'] == basename and info['folder'] == folder:
                     hash_item_id = hash_id
                     break
             
-            # 确定实际的item_id
+            # Determine实际的item_id
             actual_item_id = None
             if traditional_item_id in self.hdf5_keys:
                 actual_item_id = traditional_item_id
@@ -138,7 +138,7 @@ class HybridCardiacDataset(Dataset):
                 actual_item_id = hash_item_id
             
             if actual_item_id:
-                # 提取标签数据
+                # Extractlabelsdata
                 labels = []
                 for col in self.label_columns:
                     labels.append(float(row[col]))
@@ -153,7 +153,7 @@ class HybridCardiacDataset(Dataset):
             else:
                 missing_in_hdf5.append(f"{folder}_{basename}")
         
-        print(f"匹配到 {len(self.valid_items)} 个有效数据项")
+        print(f"Match到 {len(self.valid_items)} 个有效数据项")
         
         if missing_in_hdf5:
             print(f"警告: {len(missing_in_hdf5)} 个CSV条目在HDF5中找不到对应的图像数据")
@@ -163,62 +163,62 @@ class HybridCardiacDataset(Dataset):
         if len(self.valid_items) == 0:
             raise ValueError("没有找到CSV和HDF5中都存在的有效数据项")
         
-        print(f"最终数据集大小: {len(self.valid_items)} 个样本")
+        print(f"Final dataset size: {len(self.valid_items)} samples")
         
-        # 打印标签统计信息
+        # Printlabelsstatisticsinfo
         self._print_label_stats()
     
     def _print_label_stats(self):
-        """打印标签统计信息"""
-        print(f"\n📊 标签统计信息:")
+        """PrintLabel Statistics"""
+        print(f"\n📊 Label Statistics:")
         for i, col in enumerate(self.label_columns):
             values = [item['labels'][i] for item in self.valid_items]
             print(f"{col}:")
             print(f"  均值: {np.mean(values):.2f}")
-            print(f"  标准差: {np.std(values):.2f}")
-            print(f"  范围: [{np.min(values):.2f}, {np.max(values):.2f}]")
+            print(f"  Standard deviation: {np.std(values):.2f}")
+            print(f"  Range: [{np.min(values):.2f}, {np.max(values):.2f}]")
             
-            # 如果是分类标签（AS_maybe），显示分布
+            # ifisclassificationlabels（AS_maybe），show分布
             if 'AS' in col.upper():
                 unique_values = np.unique(values)
-                if len(unique_values) <= 5:  # 假设是分类标签
+                if len(unique_values) <= 5:  # TODO: Translate '假设'isclassificationlabels
                     for val in unique_values:
                         count = np.sum(np.array(values) == val)
                         percentage = (count / len(values)) * 100
-                        print(f"  类别 {int(val)}: {count} 样本 ({percentage:.1f}%)")
+                        print(f"  Class {int(val)}: {count} Sample ({percentage:.1f}%)")
     
     def __len__(self):
         return len(self.valid_items)
     
     def _get_from_cache(self, item_id: str):
-        """从缓存获取数据"""
+        """Get data from cache"""
         if not self.enable_cache:
             return None
         return self._cache.get(item_id)
     
     def _add_to_cache(self, item_id: str, data: np.ndarray):
-        """添加数据到缓存"""
+        """Add data to cache"""
         if not self.enable_cache:
             return
             
         if len(self._cache) >= self.cache_size:
-            # 移除最旧的缓存项
+            # Remove最旧的cache项
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
         self._cache[item_id] = data
     
     def _load_image_from_hdf5(self, item_id: str) -> np.ndarray:
-        """从HDF5文件加载图像数据"""
-        # 检查缓存
+        """Load image data from HDF5 file"""
+        # Checkcache
         cached_data = self._get_from_cache(item_id)
         if cached_data is not None:
             return cached_data
         
-        # 从HDF5文件加载
+        # fromHDF5fileLoad
         with h5py.File(self.hdf5_path, 'r') as f:
             image_data = f['images'][item_id][:]
         
-        # 添加到缓存
+        # Addtocache
         self._add_to_cache(item_id, image_data)
         
         return image_data
@@ -227,19 +227,19 @@ class HybridCardiacDataset(Dataset):
         item_info = self.valid_items[idx]
         item_id = item_info['item_id']
         
-        # 从HDF5加载图像数据
+        # fromHDF5Loadimagedata
         image_data = self._load_image_from_hdf5(item_id)
         
-        # 转换为tensor
+        # Convert为tensor
         image_tensor = torch.from_numpy(image_data).float()
         
-        # 构建标签tensor
+        # Buildlabelstensor
         labels_tensor = torch.tensor(item_info['labels'], dtype=torch.float32)
         
         return {
             'image': image_tensor,
-            'cardiac_metrics': labels_tensor,  # 保持与原有接口一致
-            'labels': labels_tensor,  # 额外提供labels字段
+            'cardiac_metrics': labels_tensor,  # TODO: Translate '保持与原'has接口一致
+            'labels': labels_tensor,  # TODO: Translate '额外提供'labelsfield
             'patient_id': item_info['basename'],
             'basename': item_info['basename'],
             'folder': item_info['folder'],
@@ -330,7 +330,7 @@ class FastCardiacDataset(Dataset):
             # If items is a list, this indicates an incorrect metadata format
             raise ValueError(
                 "元数据文件格式不正确。'items' 应该是字典而不是列表。\n"
-                "这通常表示数据预处理没有正确完成。请重新运行数据预处理：\n"
+                "这通常表示数据预Process没有正确完成。请重新运行数据预Process：\n"
                 "python -m merlin.training.data_preprocessor --config config.json --force"
             )
         elif isinstance(items, dict):
@@ -441,8 +441,8 @@ class FastCardiacDataset(Dataset):
         if cardiac_metrics is not None:
             cardiac_metrics = torch.tensor(cardiac_metrics, dtype=torch.float32)
         else:
-            # 如果没有真实标签，抛出错误而不是使用模拟数据
-            raise ValueError(f"样本 {item_id} 缺少心脏功能标签数据。请确保预处理数据中包含有效的cardiac_metrics。")
+            # if没has真实labels，抛出error而notis使用模拟data
+            raise ValueError(f"Sample {item_id} lacks cardiac function label data。Please ensure preprocessed data contains valid cardiac_metrics。")
         
         return {
             'image': image_tensor,
@@ -522,7 +522,7 @@ class FastDataLoaderManager:
             self.logger.error("Metadata 'items' is a list, but should be a dict. This indicates corrupted or incomplete preprocessing.")
             raise ValueError(
                 "元数据文件格式不正确。'items' 应该是字典而不是列表。\n"
-                "这通常表示数据预处理没有正确完成。请重新运行数据预处理：\n"
+                "这通常表示数据预Process没有正确完成。请重新运行数据预Process：\n"
                 "python -m merlin.training.data_preprocessor --config config.json --force"
             )
         elif isinstance(items, dict):
@@ -680,34 +680,34 @@ class FastDataLoaderManager:
                                  cache_size: int = 100,
                                  random_state: int = 42) -> Tuple[DataLoader, DataLoader]:
         """
-        创建混合数据加载器 - 从CSV读取标签，从HDF5读取图像
+        Create混合数据Load器 - 从CSVRead标签，从HDF5Read图像
         
         Args:
             csv_path: CSV文件路径，包含标签数据
             label_columns: 标签列名列表，默认为['lvef', 'AS_maybe']
-            split_method: 数据分割方法 ('random' 或 'patient_based')
-            train_ratio: 训练集比例
+            split_method: 数据Split method ('random' 或 'patient_based')
+            train_ratio: Training set比例
             batch_size: 批量大小
-            num_workers: 数据加载进程数
+            num_workers: 数据Load进程数
             enable_cache: 是否启用缓存
             cache_size: 缓存大小
             random_state: 随机种子
             
         Returns:
-            train_loader, val_loader: 训练和验证数据加载器
+            train_loader, val_loader: 训练和Validate数据Load器
         """
         
         print("=" * 80)
-        print("🔄 创建混合数据加载器 (CSV标签 + HDF5图像)")
+        print("🔄 Create混合数据Load器 (CSV标签 + HDF5图像)")
         print("=" * 80)
         print(f"📊 CSV标签文件: {csv_path}")
-        print(f"🖼️ HDF5图像文件: {self.hdf5_path}")
+        print(f"🖼️ HDF5 image file: {self.hdf5_path}")
         
-        # 验证CSV文件存在
+        # validateCSVfile存in
         if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"CSV文件不存在: {csv_path}")
+            raise FileNotFoundError(f"CSV file does not exist: {csv_path}")
         
-        # 创建完整数据集
+        # Create完整data集
         full_dataset = HybridCardiacDataset(
             csv_path=csv_path,
             hdf5_path=str(self.hdf5_path),
@@ -716,13 +716,13 @@ class FastDataLoaderManager:
             label_columns=label_columns
         )
         
-        print(f"✅ 成功创建数据集，共 {len(full_dataset)} 个样本")
+        print(f"✅ Successfully created dataset with {len(full_dataset)} samples")
         
-        # 数据分割
+        # dataSplit
         all_items = full_dataset.valid_items
         
         if split_method == 'random':
-            # 随机分割
+            # randomSplit
             train_items, val_items = train_test_split(
                 all_items,
                 train_size=train_ratio,
@@ -730,10 +730,10 @@ class FastDataLoaderManager:
                 shuffle=True
             )
         elif split_method == 'patient_based':
-            # 基于患者的分割
+            # TODO: Translate '基于患者的'Split
             patient_items = {}
             for item in all_items:
-                patient_id = item['basename']  # 使用basename作为patient_id
+                patient_id = item['basename']  # Use basename as patient_id
                 if patient_id not in patient_items:
                     patient_items[patient_id] = []
                 patient_items[patient_id].append(item)
@@ -753,14 +753,14 @@ class FastDataLoaderManager:
             for patient in val_patients:
                 val_items.extend(patient_items[patient])
         else:
-            raise ValueError(f"不支持的数据分割方法: {split_method}")
+            raise ValueError(f"不支持的数据Split method: {split_method}")
         
-        print(f"📊 数据分割完成:")
-        print(f"   训练集: {len(train_items)} 个样本")
-        print(f"   验证集: {len(val_items)} 个样本")
-        print(f"   分割方法: {split_method}")
+        print(f"📊 数据Split完成:")
+        print(f"   Training set: {len(train_items)} samples")
+        print(f"   Validation set: {len(val_items)} samples")
+        print(f"   Split method: {split_method}")
         
-        # 创建训练和验证数据集
+        # CreateTrainandvalidatedata集
         train_dataset = HybridCardiacDataset.__new__(HybridCardiacDataset)
         train_dataset.__dict__.update(full_dataset.__dict__)
         train_dataset.valid_items = train_items
@@ -771,7 +771,7 @@ class FastDataLoaderManager:
             val_dataset.__dict__.update(full_dataset.__dict__)
             val_dataset.valid_items = val_items
         
-        # 创建数据加载器
+        # CreatedataLoad器
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -792,7 +792,7 @@ class FastDataLoaderManager:
                 drop_last=False
             )
         
-        # 统计标签分布
+        # statisticslabels分布
         self._print_hybrid_label_stats(train_items, val_items, full_dataset.label_columns)
         
         print("=" * 80)
@@ -800,46 +800,46 @@ class FastDataLoaderManager:
         return train_loader, val_loader
     
     def _print_hybrid_label_stats(self, train_items: List[Dict], val_items: List[Dict], label_columns: List[str]):
-        """打印混合数据集的标签分布统计"""
-        print(f"\n📈 标签分布统计:")
+        """Print混合数据集的Label Distribution Statistics"""
+        print(f"\n📈 Label Distribution Statistics:")
         
-        # 训练集统计
+        # Train集statistics
         if train_items:
-            print("训练集:")
+            print("Training set:")
             for i, col in enumerate(label_columns):
                 values = [item['labels'][i] for item in train_items]
                 print(f"  {col}:")
                 print(f"    均值: {np.mean(values):.2f}")
-                print(f"    标准差: {np.std(values):.2f}")
-                print(f"    范围: [{np.min(values):.2f}, {np.max(values):.2f}]")
+                print(f"    Standard deviation: {np.std(values):.2f}")
+                print(f"    Range: [{np.min(values):.2f}, {np.max(values):.2f}]")
                 
-                # 如果是分类标签，显示分布
+                # ifisclassificationlabels，show分布
                 if 'AS' in col.upper():
                     unique_values = np.unique(values)
                     if len(unique_values) <= 5:
                         for val in unique_values:
                             count = np.sum(np.array(values) == val)
                             percentage = (count / len(values)) * 100
-                            print(f"    类别 {int(val)}: {count} 样本 ({percentage:.1f}%)")
+                            print(f"    Class {int(val)}: {count} Sample ({percentage:.1f}%)")
         
-        # 验证集统计
+        # validate集statistics
         if val_items:
-            print("验证集:")
+            print("Validation set:")
             for i, col in enumerate(label_columns):
                 values = [item['labels'][i] for item in val_items]
                 print(f"  {col}:")
                 print(f"    均值: {np.mean(values):.2f}")
-                print(f"    标准差: {np.std(values):.2f}")
-                print(f"    范围: [{np.min(values):.2f}, {np.max(values):.2f}]")
+                print(f"    Standard deviation: {np.std(values):.2f}")
+                print(f"    Range: [{np.min(values):.2f}, {np.max(values):.2f}]")
                 
-                # 如果是分类标签，显示分布
+                # ifisclassificationlabels，show分布
                 if 'AS' in col.upper():
                     unique_values = np.unique(values)
                     if len(unique_values) <= 5:
                         for val in unique_values:
                             count = np.sum(np.array(values) == val)
                             percentage = (count / len(values)) * 100
-                            print(f"    类别 {int(val)}: {count} 样本 ({percentage:.1f}%)")
+                            print(f"    Class {int(val)}: {count} Sample ({percentage:.1f}%)")
     
     def get_data_statistics(self) -> Dict[str, Any]:
         """Get data statistics"""
@@ -929,19 +929,19 @@ def create_fast_data_loaders(config: Dict[str, Any]) -> Tuple[DataLoader, DataLo
         )
     except Exception as e:
         print("\n" + "=" * 80)
-        print("❌ 快速数据加载器初始化失败")
+        print("❌ 快速数据Load器Initialize失败")
         print("=" * 80)
         print(f"错误: {e}")
         
         # Check preprocessing status
         status = check_preprocessing_status(config)
-        print(f"\n🔍 预处理数据状态检查:")
+        print(f"\n🔍 预Process数据状态Check:")
         print(f"   目录: {status.get('preprocessed_dir', 'N/A')}")
         print(f"   HDF5文件存在: {status.get('hdf5_exists', False)}")
         print(f"   元数据文件存在: {status.get('metadata_exists', False)}")
         
         if status['status'] == 'files_missing':
-            print("\n❌ 预处理数据文件缺失")
+            print("\n❌ 预Process数据文件缺失")
         elif status['status'] == 'invalid_metadata_format':
             print(f"\n❌ 元数据文件格式错误 (类型: {status.get('metadata_type', 'unknown')})")
         elif status['status'] == 'missing_items_key':
@@ -949,14 +949,14 @@ def create_fast_data_loaders(config: Dict[str, Any]) -> Tuple[DataLoader, DataLo
         elif status['status'] == 'invalid_items_format':
             print(f"\n❌ 元数据中'items'格式错误 (类型: {status.get('items_type', 'unknown')}，应为dict)")
         elif status['status'] == 'ok':
-            print(f"\n✅ 预处理数据格式正确 ({status.get('num_items', 0)} 个数据项)")
+            print(f"\n✅ 预Process数据格式正确 ({status.get('num_items', 0)} 个数据项)")
         
         print("\n🔍 解决方案:")
-        print("1. 运行或重新运行数据预处理:")
+        print("1. 运行或重新运行数据预Process:")
         print("   python -m merlin.training.data_preprocessor --config config.json --force")
         print("2. 确保CSV文件路径正确")
         print("3. 确保图像文件路径正确")
-        print("4. 检查磁盘空间是否足够")
+        print("4. Check磁盘空间是否足够")
         print("=" * 80)
         raise
 
@@ -1049,50 +1049,50 @@ if __name__ == '__main__':
 
 def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataLoader, DataLoader]:
     """
-    从配置创建混合数据加载器的便捷函数
+    Create hybrid data loaders from configuration的便捷函数
     
     Args:
         config: 配置字典，必须包含以下键：
             - csv_path: CSV标签文件路径
-            - hdf5_path: HDF5图像文件路径 (或 preprocessed_data_dir)
+            - hdf5_path: HDF5 image file路径 (或 preprocessed_data_dir)
             - label_columns: 标签列名列表 (可选，默认['lvef', 'AS_maybe'])
-            - split_method: 数据分割方法 (可选，默认'random')
-            - train_val_split: 训练集比例 (可选，默认0.8)
+            - split_method: 数据Split method (可选，默认'random')
+            - train_val_split: Training set比例 (可选，默认0.8)
             - batch_size: 批量大小 (可选，默认4)
-            - num_workers: 数据加载进程数 (可选，默认4)
+            - num_workers: 数据Load进程数 (可选，默认4)
             - cache_size: 缓存大小 (可选，默认100)
             - seed: 随机种子 (可选，默认42)
     
     Returns:
-        train_loader, val_loader: 训练和验证数据加载器
+        train_loader, val_loader: 训练和Validate数据Load器
     """
     
-    # 检查必需的配置
+    # Check必需的config
     if 'csv_path' not in config:
-        raise ValueError("配置中缺少csv_path")
+        raise ValueError("Missing csv_path in config")
     
-    # 确定HDF5文件路径
+    # DetermineHDF5filepath
     if 'hdf5_path' in config:
         hdf5_path = config['hdf5_path']
     elif 'preprocessed_data_dir' in config:
         hdf5_path = str(Path(config['preprocessed_data_dir']) / 'preprocessed_data.h5')
     else:
-        raise ValueError("配置中必须包含hdf5_path或preprocessed_data_dir")
+        raise ValueError("Config must contain hdf5_path or preprocessed_data_dir")
     
-    # 验证文件存在
+    # validatefile存in
     if not os.path.exists(config['csv_path']):
-        raise FileNotFoundError(f"CSV文件不存在: {config['csv_path']}")
+        raise FileNotFoundError(f"CSV file does not exist: {config['csv_path']}")
     if not os.path.exists(hdf5_path):
-        raise FileNotFoundError(f"HDF5文件不存在: {hdf5_path}")
+        raise FileNotFoundError(f"HDF5 file does not exist: {hdf5_path}")
     
     print("=" * 80)
-    print("🚀 创建混合数据加载器 (从配置)")
+    print("🚀 Create混合数据Load器 (从配置)")
     print("=" * 80)
     print(f"📊 CSV标签文件: {config['csv_path']}")
-    print(f"🖼️ HDF5图像文件: {hdf5_path}")
+    print(f"🖼️ HDF5 image file: {hdf5_path}")
     
-    # 直接创建数据集和加载器，不需要FastDataLoaderManager
-    # 创建完整数据集
+    # TODO: Translate '直接'Createdata集andLoad器，not需要FastDataLoaderManager
+    # Create完整data集
     full_dataset = HybridCardiacDataset(
         csv_path=config['csv_path'],
         hdf5_path=hdf5_path,
@@ -1101,9 +1101,9 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
         label_columns=config.get('label_columns', ['lvef', 'AS_maybe'])
     )
     
-    print(f"✅ 成功创建数据集，共 {len(full_dataset)} 个样本")
+    print(f"✅ Successfully created dataset with {len(full_dataset)} samples")
     
-    # 数据分割
+    # dataSplit
     split_method = config.get('split_method', 'random')
     train_ratio = config.get('train_val_split', 0.8)
     random_state = config.get('seed', 42)
@@ -1118,7 +1118,7 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
             shuffle=True
         )
     elif split_method == 'patient_based':
-        # 基于患者的分割
+        # TODO: Translate '基于患者的'Split
         patient_items = {}
         for item in all_items:
             patient_id = item['basename']
@@ -1141,14 +1141,14 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
         for patient in val_patients:
             val_items.extend(patient_items[patient])
     else:
-        raise ValueError(f"不支持的数据分割方法: {split_method}")
+        raise ValueError(f"不支持的数据Split method: {split_method}")
     
-    print(f"📊 数据分割完成:")
-    print(f"   训练集: {len(train_items)} 个样本")
-    print(f"   验证集: {len(val_items)} 个样本")
-    print(f"   分割方法: {split_method}")
+    print(f"📊 数据Split完成:")
+    print(f"   Training set: {len(train_items)} samples")
+    print(f"   Validation set: {len(val_items)} samples")
+    print(f"   Split method: {split_method}")
     
-    # 创建训练和验证数据集
+    # CreateTrainandvalidatedata集
     train_dataset = HybridCardiacDataset.__new__(HybridCardiacDataset)
     train_dataset.__dict__.update(full_dataset.__dict__)
     train_dataset.valid_items = train_items
@@ -1159,7 +1159,7 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
         val_dataset.__dict__.update(full_dataset.__dict__)
         val_dataset.valid_items = val_items
     
-    # 创建数据加载器
+    # CreatedataLoad器
     batch_size = config.get('batch_size', 4)
     num_workers = config.get('num_workers', 4)
     
@@ -1183,7 +1183,7 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
             drop_last=False
         )
     
-    # 打印标签分布统计
+    # Printlabels分布statistics
     _print_label_distribution_stats(train_items, val_items, full_dataset.label_columns)
     
     print("=" * 80)
@@ -1192,47 +1192,47 @@ def create_hybrid_dataloaders_from_config(config: Dict[str, Any]) -> Tuple[DataL
 
 
 def _print_label_distribution_stats(train_items: List[Dict], val_items: List[Dict], label_columns: List[str]):
-    """打印标签分布统计的辅助函数"""
-    print(f"\n📈 标签分布统计:")
+    """PrintLabel Distribution Statistics的辅助函数"""
+    print(f"\n📈 Label Distribution Statistics:")
     
-    # 训练集统计
+    # Train集statistics
     if train_items:
-        print("训练集:")
+        print("Training set:")
         for i, col in enumerate(label_columns):
             values = [item['labels'][i] for item in train_items]
             print(f"  {col}:")
             print(f"    均值: {np.mean(values):.2f}")
-            print(f"    标准差: {np.std(values):.2f}")
-            print(f"    范围: [{np.min(values):.2f}, {np.max(values):.2f}]")
+            print(f"    Standard deviation: {np.std(values):.2f}")
+            print(f"    Range: [{np.min(values):.2f}, {np.max(values):.2f}]")
             
-            # 如果是分类标签，显示分布
+            # ifisclassificationlabels，show分布
             if 'AS' in col.upper():
                 unique_values = np.unique(values)
                 if len(unique_values) <= 5:
                     for val in unique_values:
                         count = np.sum(np.array(values) == val)
                         percentage = (count / len(values)) * 100
-                        print(f"    类别 {int(val)}: {count} 样本 ({percentage:.1f}%)")
+                        print(f"    Class {int(val)}: {count} Sample ({percentage:.1f}%)")
     
-    # 验证集统计
+    # validate集statistics
     if val_items:
-        print("验证集:")
+        print("Validation set:")
         for i, col in enumerate(label_columns):
             values = [item['labels'][i] for item in val_items]
             print(f"  {col}:")
             print(f"    均值: {np.mean(values):.2f}")
-            print(f"    标准差: {np.std(values):.2f}")
-            print(f"    范围: [{np.min(values):.2f}, {np.max(values):.2f}]")
+            print(f"    Standard deviation: {np.std(values):.2f}")
+            print(f"    Range: [{np.min(values):.2f}, {np.max(values):.2f}]")
             
-            # 如果是分类标签，显示分布
+            # ifisclassificationlabels，show分布
             if 'AS' in col.upper():
                 unique_values = np.unique(values)
                 if len(unique_values) <= 5:
                     for val in unique_values:
                         count = np.sum(np.array(values) == val)
                         percentage = (count / len(values)) * 100
-                        print(f"    类别 {int(val)}: {count} 样本 ({percentage:.1f}%)")
+                        print(f"    Class {int(val)}: {count} Sample ({percentage:.1f}%)")
 
 
-# 为了向后兼容，提供别名
+# TODO: Translate '为了向后'compatible，提供别名
 create_hybrid_data_loaders = create_hybrid_dataloaders_from_config 

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-将医疗数据转换为CSV格式
+Convert medical data to CSV format
 
-这个脚本将用户提供的CT检查数据转换为CSV文件
+This script converts user-provided CT examination data to CSV files
 """
 
 import pandas as pd
 from datetime import datetime
 
 def create_csv_from_data():
-    """将提供的数据转换为CSV格式"""
+    """Convert provided data to CSV format"""
     
-    print("正在创建CSV文件...")
+    print("Creating CSV file...")
     
-    # 根据用户提供的数据创建DataFrame
-    # 注意：用户显示的是前5行数据，包含17列
+    # Create DataFrame based on user-provided data
+    # Note: User shows first 5 rows of data, including 17 columns
     data = {
         'mrn': [13.0, 264481.0, 264481.0, 571315.0, 626788.0],
         'accession_number': [17229665, 14954316, 15215902, 17383152, 17047772],
@@ -31,32 +31,32 @@ def create_csv_from_data():
                 'Computed Tomography', 'Computed Tomography']
     }
     
-    # 创建DataFrame
+    # CreateDataFrame
     df = pd.DataFrame(data)
     
-    # 转换时间列为datetime格式
+    # Convert time column to datetime format
     df['proc_start_time'] = pd.to_datetime(df['proc_start_time'])
     
-    # 显示数据信息
-    print("数据预览:")
+    # showdatainfo
+    print("Data preview:")
     print(df)
-    print(f"\n数据形状: {df.shape}")
-    print(f"列名: {list(df.columns)}")
+    print(f"\nData shape: {df.shape}")
+    print(f"Column names: {list(df.columns)}")
     
-    # 保存为CSV文件
+    # Save as CSV file
     csv_filename = 'ct_scan_data.csv'
     df.to_csv(csv_filename, index=False, encoding='utf-8')
     
-    print(f"\n✅ 数据已成功保存为: {csv_filename}")
-    print(f"   - 行数: {len(df)}")
+    print(f"\n✅ Data successfully saved as: {csv_filename}")
+    print(f"   - Row count: {len(df)}")
     print(f"   - 列数: {len(df.columns)}")
     
-    # 显示CSV文件的前几行
+    # Show first few rows of CSV file
     print(f"\n📄 CSV文件内容预览:")
     print("-" * 80)
     with open(csv_filename, 'r', encoding='utf-8') as f:
         for i, line in enumerate(f):
-            if i < 7:  # 显示前7行（包括标题行）
+            if i < 7:  # Show first 7 rows (including header)
                 print(line.strip())
             else:
                 break
@@ -65,24 +65,24 @@ def create_csv_from_data():
 
 def add_missing_columns():
     """
-    如果您的原始数据有17列，可以使用这个函数添加其他可能的列
+    如果您的原始数据有17列，可以使用这个函数Add其他可能的列
     """
-    print("\n注意: 您提到原始数据有17列，但只显示了6列。")
-    print("如果需要添加其他列，请提供完整的列名和数据。")
+    print("\n注意: 您提到原始数据有17列，但只Show了6列。")
+    print("如果需要Add其他列，请提供完整的列名和数据。")
     
-    # 常见的CT检查相关列可能包括：
+    # Common CT examination related columns may include:
     possible_columns = [
-        'study_date',           # 检查日期
-        'modality',            # 检查方式
-        'body_part',           # 检查部位
-        'institution',         # 医疗机构
-        'referring_physician', # 转诊医生
-        'study_description',   # 检查描述
-        'series_description',  # 序列描述
-        'slice_thickness',     # 层厚
-        'kvp',                 # 千伏峰值
-        'exposure_time',       # 曝光时间
-        'tube_current'         # 管电流
+        'study_date',           # Checkdate
+        'modality',            # Examination method
+        'body_part',           # Examination body part
+        'institution',         # Medical institution
+        'referring_physician', # Referring physician
+        'study_description',   # Study description
+        'series_description',  # Series description
+        'slice_thickness',     # Slice thickness
+        'kvp',                 # Peak kilovoltage
+        'exposure_time',       # Exposure time
+        'tube_current'         # Tube current
     ]
     
     print("可能的其他列包括:")
@@ -90,13 +90,13 @@ def add_missing_columns():
         print(f"  {i:2d}. {col}")
 
 if __name__ == "__main__":
-    print("=== CT检查数据转换为CSV ===\n")
+    print("=== CTCheck数据Convert为CSV ===\n")
     
-    # 执行转换
+    # Execute conversion
     csv_file = create_csv_from_data()
     
-    # 显示可能的其他列
+    # Show other possible columns
     add_missing_columns()
     
-    print(f"\n=== 转换完成 ===")
+    print(f"\n=== Convert完成 ===")
     print(f"生成的CSV文件: {csv_file}") 

@@ -1,52 +1,52 @@
-# 心脏功能预测 - 混合数据加载器训练系统
+# Cardiac Function Prediction - Hybrid Data Loader Training System
 
-基于胸部CT影像和超声心动图数据的心脏功能预测模型训练系统。
+A cardiac function prediction model training system based on chest CT images and echocardiogram data.
 
-## 🎯 核心功能
+## 🎯 Core Features
 
-- **混合数据加载**: 从CSV文件读取标签，从HDF5文件读取预处理的图像数据
-- **心脏功能预测**: 同时进行LVEF回归和主动脉狭窄(AS)分类
-- **高效训练**: 利用预处理的HDF5数据实现快速训练
+- **Hybrid Data Loading**: Read labels from CSV files and preprocessed image data from HDF5 files
+- **Cardiac Function Prediction**: Simultaneous LVEF regression and aortic stenosis (AS) classification
+- **Efficient Training**: Fast training using preprocessed HDF5 data
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 环境准备
+### 1. Environment Setup
 
 ```bash
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. 数据准备
+### 2. Data Preparation
 
-确保以下文件存在：
-- **标签文件**: `merged_ct_echo_data.csv` - 包含basename, folder, lvef, AS_maybe列
-- **图像文件**: HDF5格式的预处理图像数据
-- **配置文件**: `configs/hybrid_cardiac_training_config.json`
+Ensure the following files exist:
+- **Label File**: `merged_ct_echo_data.csv` - Contains basename, folder, lvef, AS_maybe columns
+- **Image Files**: Preprocessed image data in HDF5 format
+- **Config File**: `configs/hybrid_cardiac_training_config.json`
 
-### 3. 开始训练
+### 3. Start Training
 
 ```bash
 python examples/cardiac_training_example.py --config configs/hybrid_cardiac_training_config.json
 ```
 
-## 📊 数据格式
+## 📊 Data Format
 
-### CSV标签文件格式
+### CSV Label File Format
 ```csv
 basename,folder,lvef,AS_maybe,patient_id
 LA3dd33e5-LA3dd5b65,1A,61.47,0.0,patient_001
 LA3dd74cb-LA3dd962e,1A,55.23,1.0,patient_002
 ```
 
-### HDF5图像文件格式
-- 路径: `/path/to/preprocessed_data.h5`
-- 结构: `images/` 组包含哈希键名的图像数据
-- 元数据: `data_metadata.json` 提供哈希到basename/folder的映射
+### HDF5 Image File Format
+- Path: `/path/to/preprocessed_data.h5`
+- Structure: `images/` group contains image data with hash key names
+- Metadata: `data_metadata.json` provides hash to basename/folder mapping
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-关键配置参数 (`configs/hybrid_cardiac_training_config.json`):
+Key configuration parameters (`configs/hybrid_cardiac_training_config.json`):
 
 ```json
 {
@@ -60,89 +60,89 @@ LA3dd74cb-LA3dd962e,1A,55.23,1.0,patient_002
 }
 ```
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 ├── configs/
-│   ├── hybrid_cardiac_training_config.json  # 训练配置
-│   └── README_hybrid_training.md            # 详细使用说明
+│   ├── hybrid_cardiac_training_config.json  # Training configuration
+│   └── README_hybrid_training.md            # Detailed usage guide
 ├── examples/
-│   └── cardiac_training_example.py          # 主训练脚本
+│   └── cardiac_training_example.py          # Main training script
 ├── merlin/
 │   ├── training/
-│   │   ├── fast_dataloader.py              # 混合数据加载器
-│   │   └── cardiac_trainer.py              # 训练器
-│   ├── models/                             # 模型定义
-│   └── data/                               # 数据处理工具
+│   │   ├── fast_dataloader.py              # Hybrid data loader
+│   │   └── cardiac_trainer.py              # Trainer
+│   ├── models/                             # Model definitions
+│   └── data/                               # Data processing tools
 ├── scripts/
-│   └── merge_csv_data.py                   # CSV数据合并工具
-├── merged_ct_echo_data.csv                 # 合并的标签数据
-└── requirements.txt                        # 依赖包
+│   └── merge_csv_data.py                   # CSV data merging tool
+├── merged_ct_echo_data.csv                 # Merged label data
+└── requirements.txt                        # Dependencies
 ```
 
-## 🔧 核心组件
+## 🔧 Core Components
 
 ### HybridCardiacDataset
-混合数据加载器，支持：
-- 从CSV读取标签数据
-- 从HDF5读取图像数据
-- 智能哈希映射匹配
-- 内存缓存优化
+Hybrid data loader supporting:
+- Reading label data from CSV
+- Reading image data from HDF5
+- Intelligent hash mapping matching
+- Memory cache optimization
 
 ### CardiacTrainer
-训练器，支持：
-- 多任务学习 (回归+分类)
-- 类别权重平衡
-- TensorBoard可视化
-- 自动模型保存
+Trainer supporting:
+- Multi-task learning (regression + classification)
+- Class weight balancing
+- TensorBoard visualization
+- Automatic model saving
 
-## 📈 训练监控
+## 📈 Training Monitoring
 
 ### TensorBoard
 ```bash
 tensorboard --logdir outputs/hybrid_cardiac_training/tensorboard
 ```
 
-### 训练日志
-- 位置: `outputs/hybrid_cardiac_training/training.log`
-- 包含: 损失曲线、指标统计、模型保存信息
+### Training Logs
+- Location: `outputs/hybrid_cardiac_training/training.log`
+- Contains: Loss curves, metric statistics, model saving information
 
-## 🎯 模型输出
+## 🎯 Model Output
 
-- **LVEF回归**: 预测左心室射血分数 (5-90%)
-- **AS分类**: 预测主动脉狭窄风险 (0: 正常, 1: 可能AS)
+- **LVEF Regression**: Predict left ventricular ejection fraction (5-90%)
+- **AS Classification**: Predict aortic stenosis risk (0: Normal, 1: Possible AS)
 
-## 📋 系统要求
+## 📋 System Requirements
 
 - Python 3.8+
 - PyTorch 1.9+
-- CUDA 11.0+ (GPU训练)
-- 16GB+ RAM (推荐)
+- CUDA 11.0+ (GPU training)
+- 16GB+ RAM (recommended)
 
-## 🔍 故障排除
+## 🔍 Troubleshooting
 
-### 常见问题
+### Common Issues
 
-1. **数据匹配失败**
-   - 检查CSV中的basename/folder列
-   - 验证HDF5文件路径和元数据文件
+1. **Data Matching Failure**
+   - Check basename/folder columns in CSV
+   - Verify HDF5 file path and metadata file
 
-2. **内存不足**
-   - 减少batch_size
-   - 调整cache_size
-   - 设置preload_data为false
+2. **Out of Memory**
+   - Reduce batch_size
+   - Adjust cache_size
+   - Set preload_data to false
 
-3. **训练速度慢**
-   - 增加num_workers
-   - 启用GPU训练
-   - 调整缓存设置
+3. **Slow Training**
+   - Increase num_workers
+   - Enable GPU training
+   - Adjust cache settings
 
-详细说明请参考: `configs/README_hybrid_training.md`
+For detailed instructions, see: `configs/README_hybrid_training.md`
 
-## 📄 许可证
+## 📄 License
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
+MIT License - See [LICENSE](LICENSE) file for details
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交Issue和Pull Request来改进项目！
+Welcome to submit Issues and Pull Requests to improve the project!
