@@ -1,4 +1,4 @@
-# Cardiac Function Prediction - Hybrid Data Loader Training System
+# ChestCT-Cardiac Prediction
 
 A cardiac function prediction model training system based on chest CT images and echocardiogram data.
 
